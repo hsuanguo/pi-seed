@@ -1,6 +1,18 @@
 # pi-dotfiles
 
-My [pi](https://pi.dev) setup: extensions, skills, packages, default settings, and AGENTS.md.
+A small [pi](https://pi.dev) setup, shared as a starting point for your own: extensions, skills,
+packages, default settings, and AGENTS.md.
+
+## Philosophy
+
+**Less is More.** The goal is a minimal setup that stays stable, reliable, and easy to understand.
+Sharing it gives others a practical foundation they can inspect, try, and adapt to their own work.
+
+- Keep defaults small and purposeful; add something only when it solves a recurring need.
+- Favor predictable behavior and simple configuration that is easy to maintain.
+- Take what helps you, remove what doesn't, and build from there.
+
+This is a starting point, not an endpoint. Your setup should grow with your needs.
 
 ## Install
 
@@ -39,6 +51,17 @@ Options: `--dry-run`, `--force`, `--no-packages`, `--no-agents`, `--no-self`, `-
 ```bash
 PI_CODING_AGENT_DIR=/tmp/pi-try node install.mjs --self ./
 ```
+
+## Make it your own
+
+Before installing, review `setup/settings.json` and `setup/AGENTS.md`. Adjust the package list,
+defaults, and instructions to fit your workflow, then preview the changes with `--dry-run`.
+Use `--no-packages` or `--no-agents` to skip those parts, or install only the extensions and skills
+with the pi package command above. The [extension selection example](#extensions) lets you choose
+which extensions to load.
+
+Share improvements that make this foundation simpler or more dependable. Keep specialized workflows
+in your own setup unless they serve a clear, common need.
 
 ## Extensions
 

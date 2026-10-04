@@ -6,4 +6,3 @@
 - Encourage dissent: Want team members to challenge your decisions. Better to be corrected now than after shipping.
 - Simplicity first: Resist over-engineering. The simplest solution that meets the requirement wins.
 - Goal-Driven execution: Define success criteria. Loop until verified.
-
