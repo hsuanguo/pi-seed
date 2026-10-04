@@ -1,0 +1,8 @@
+node_modules/
+__pycache__/
+*.pyc
+.DS_Store
+# never commit credentials or local state
+auth.json
+sessions/
+*.bak-*

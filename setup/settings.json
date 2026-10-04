@@ -1,0 +1,11 @@
+{
+  "enableSkillCommands": true,
+  "defaultTools": ["+codemode"],
+  "packages": [
+    "npm:pi-web-access",
+    "npm:pi-cache-optimizer",
+    "npm:@juicesharp/rpiv-todo",
+    "npm:pi-subagents",
+    "npm:pi-lens"
+  ]
+}

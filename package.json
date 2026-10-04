@@ -1,0 +1,19 @@
+{
+  "name": "pi-dotfiles",
+  "version": "0.2.0",
+  "description": "My pi setup: extensions and skills as a pi package, plus an installer for packages, settings, and AGENTS.md",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "keywords": ["pi-package"],
+  "pi": {
+    "extensions": ["./extensions"],
+    "skills": ["./skills"]
+  },
+  "peerDependencies": {
+    "@earendil-works/pi-coding-agent": "*"
+  },
+  "scripts": {
+    "setup": "node install.mjs"
+  }
+}
