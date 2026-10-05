@@ -6,6 +6,9 @@
   "private": true,
   "type": "module",
   "keywords": ["pi-package"],
+  "engines": {
+    "node": ">=22.19.0"
+  },
   "pi": {
     "extensions": ["./extensions"],
     "skills": ["./skills"]
@@ -13,7 +16,16 @@
   "peerDependencies": {
     "@earendil-works/pi-coding-agent": "*"
   },
+  "devDependencies": {
+    "@earendil-works/pi-ai": "1.0.0",
+    "@earendil-works/pi-coding-agent": "1.0.0",
+    "@types/node": "^24.0.0",
+    "typescript": "^5.9.0"
+  },
   "scripts": {
-    "setup": "node install.mjs"
+    "setup": "node install.mjs",
+    "test": "node --test --test-concurrency=4 \"tests/**/*.test.ts\"",
+    "typecheck": "tsc -p .",
+    "check": "npm run typecheck && npm test"
   }
 }

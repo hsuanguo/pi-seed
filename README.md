@@ -85,9 +85,9 @@ To load only some of them, use the object form of the package in `~/.pi/agent/se
 ## Contributing
 
 Keep contributions small and focused on making this shared starting point simpler or more reliable.
-The root [AGENTS.md](AGENTS.md) covers development conventions, installer compatibility, and isolated
-extension checks. Use `pi -e ./` to try this checkout for one run; development tests should also use
-a disposable agent directory and workspace so your existing pi settings and sessions stay intact.
+The root [AGENTS.md](AGENTS.md) covers development conventions and installer compatibility.
+Run `npm install && npm run check` before submitting: tests run in disposable directories and never
+touch your pi settings or sessions. Use `pi -e ./` to try this checkout for one run.
 
 ## Updating
 
