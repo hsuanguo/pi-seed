@@ -5,15 +5,15 @@
  *   1. settings  - merges setup/settings.json into settings.json. Arrays are unioned; other values
  *                  are written only where you have none yet (--force overwrites). Backed up first.
  *   2. packages  - runs `pi install` for every package in setup/settings.json that is not installed,
- *                  plus this repo itself (which ships the skills).
+ *                  plus this repo itself (which ships the extensions).
  *   3. AGENTS.md - copies setup/AGENTS.md only if no user context file exists. Existing context
  *                  files are left untouched; maintain them yourself.
  *
  * Options:
  *   --dry-run       Print what would change, change nothing.
  *   --force         Overwrite settings you already have with this setup's values.
- *   --self <src>    Package source for this repo's skills (default: SELF_SOURCE below).
- *   --no-self       Do not install this repo's skills.
+ *   --self <src>    Package source for this repo (default: SELF_SOURCE below).
+ *   --no-self       Do not install this repo.
  *   --no-packages   Skip `pi install`.
  *   --no-agents     Skip AGENTS.md.
  */

@@ -6,7 +6,7 @@ Share a minimal, stable, reliable pi setup as a starting point others can adapt.
 
 ## Project Structure & Style
 
-`extensions/` holds TypeScript extensions declared in `package.json`; `setup/` holds installation defaults. `skills/skill-creator/` bundles Python utilities, references, and HTML evaluation assets. Match existing style: tabs in JavaScript/TypeScript, double quotes, semicolons, ES modules; two spaces in JSON; four spaces in Python. Use camelCase functions, PascalCase types, UPPER_SNAKE_CASE constants, and kebab-case extension filenames and skill directories. Skills require `SKILL.md` frontmatter.
+`extensions/` holds TypeScript extensions declared in `package.json`; `setup/` holds installation defaults. `skills/` is reserved for package skills and currently contains only its README. Match existing style: tabs in JavaScript/TypeScript, double quotes, semicolons, ES modules; two spaces in JSON; four spaces in Python. Use camelCase functions, PascalCase types, UPPER_SNAKE_CASE constants, and kebab-case extension filenames and skill directories. Skills require `SKILL.md` frontmatter.
 
 ## Installer Compatibility & Shared Defaults
 
@@ -63,4 +63,4 @@ No build/test script, formatter, or coverage threshold is configured. There is n
 
 ## Commits, PRs & Security
 
-Use focused commits with descriptive subjects; no Conventional Commits scheme is established. PRs should explain behavior changes, compatibility impact, and reproducible validation. Update README for user-facing changes. Keep credentials, sessions, and backups out of Git; retain the bundled skill's Apache-2.0 license.
+Use focused commits with descriptive subjects; no Conventional Commits scheme is established. PRs should explain behavior changes, compatibility impact, and reproducible validation. Update README for user-facing changes. Keep credentials, sessions, and backups out of Git.

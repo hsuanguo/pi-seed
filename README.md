@@ -1,6 +1,6 @@
 # pi-seed
 
-A small [pi](https://pi.dev) setup, shared as a starting point for your own: extensions, skills,
+A small [pi](https://pi.dev) setup, shared as a starting point for your own: extensions, a skills directory,
 packages, default settings, and AGENTS.md.
 
 ## Philosophy
@@ -26,8 +26,8 @@ node install.mjs
 
 Then start a new pi session (or `/reload` a running one).
 
-Only want the extensions and skills? `pi install git:github.com/hsuanguo/pi-seed` — this repo is a
-pi package that ships `extensions/` and `skills/`.
+Only want the extensions? `pi install git:github.com/hsuanguo/pi-seed` — this repo is a
+pi package that ships `extensions/` and reserves `skills/` for future additions.
 
 Cloning over SSH (e.g. while the repo is private)? Pass the SSH source so the package installs the same way:
 `node install.mjs --self git@github.com:hsuanguo/pi-seed.git` (pi itself needs the `git:` prefix:
@@ -41,7 +41,7 @@ Cloning over SSH (e.g. while the repo is private)? Pass the SSH source so the pa
 | Packages | `packages` in `setup/settings.json` | `pi install` for each one you don't have yet, plus this repo for its extensions and skills. |
 | AGENTS.md | `setup/AGENTS.md` | Copied directly to your agent directory without boundary markers, only if no supported context file exists (`AGENTS.override.md`, `AGENTS.md`, `AGENTS.MD`, `CLAUDE.md`, or `CLAUDE.MD`). Otherwise skipped with a reminder to maintain it yourself, even with `--force`. |
 | Extensions | `extensions/` | Loaded from this package, see [Extensions](#extensions). |
-| Skills | `skills/` | Loaded from this package: `skill-creator`. |
+| Skills | `skills/` | Reserved for skills distributed with this package; none are bundled yet. See [skills/README.md](skills/README.md). |
 
 Rerunning is safe: anything already in place is skipped.
 
@@ -56,7 +56,7 @@ PI_CODING_AGENT_DIR=/tmp/pi-try node install.mjs --self ./
 
 Before installing, review `setup/settings.json` and `setup/AGENTS.md`. Adjust the package list,
 defaults, and instructions to fit your workflow, then preview the changes with `--dry-run`.
-Use `--no-packages` or `--no-agents` to skip those parts, or install only the extensions and skills
+Use `--no-packages` or `--no-agents` to skip those parts, or install only the extensions
 with the pi package command above. The [extension selection example](#extensions) lets you choose
 which extensions to load.
 
@@ -67,7 +67,7 @@ in your own setup unless they serve a clear, common need.
 
 | Extension | What it does | Command |
 |---|---|---|
-| `claude-skills.ts` | Loads skills from `~/.claude/skills/` and project `.claude/skills/` (trusted projects only). Config: `claudeSkills` in `pi-seed-config.json`. | `/claude-skills` |
+| `claude-skills.ts` | Loads skills from `~/.claude/skills/` and project `.claude/skills/` (trusted projects only). `ancestors` (default) searches upward; `eager` also discovers nested project skill directories. Config: `claudeSkills` in `pi-seed-config.json`. | `/claude-skills` |
 | `scoped-context.ts` | Loads `AGENTS.md` / `CLAUDE.md` from subdirectories of the working directory: `lazy` (default) appends a file the first time a tool touches a path below it; `eager` adds all of them to the system prompt. Config: `scopedContext` in `pi-seed-config.json`. | `/scoped-context` |
 
 Details are in the comment at the top of each file.
@@ -80,6 +80,7 @@ valid project values override user values field by field. Missing sections use d
 ```json
 {
   "claudeSkills": {
+    "mode": "ancestors",
     "ignoreUserSkills": false,
     "ignoreProjectSkills": false
   },
@@ -88,6 +89,17 @@ valid project values override user values field by field. Missing sections use d
   }
 }
 ```
+
+Set `claudeSkills.mode` to `"eager"` to discover directories such as
+`<repo-root>/A/.claude/skills/`, even when starting pi in another repository subdirectory.
+Outside Git, the downward scan starts at cwd. Hidden directories (except the `.claude/skills`
+candidate at each visited directory), `node_modules`, and directory symlinks are skipped.
+Nested repositories containing a `.git` directory or file are also skipped entirely,
+including their own `.claude/skills/`. Start pi inside a nested repository to load its skills.
+The downward scan only runs for trusted projects with project skills enabled. User skills
+and existing ancestor skill directories retain priority over newly discovered directories.
+This registers skills at startup or `/reload`; it does not eagerly insert every skill's full
+instructions into the system prompt.
 
 Invalid JSON, invalid section types, unknown sections or fields, and invalid values produce
 warnings; invalid values do not replace valid user values. Run `/reload` after editing.
@@ -120,7 +132,6 @@ a disposable agent directory and workspace so your existing pi settings and sess
 
 ## Notes
 
-- `skill-creator` is Apache-2.0, see `skills/skill-creator/LICENSE.txt`.
 - No credentials are included: `auth.json`, `models.json`, and `mcp.json` are not part of this setup.
 
 ## Uninstall
