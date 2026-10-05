@@ -10,7 +10,7 @@ Share a minimal, stable, reliable pi setup as a starting point others can adapt.
 
 ## Installer Compatibility & Shared Defaults
 
-- Preserve recognition of existing `<!-- pi-dotfiles:begin ... -->` and `<!-- pi-dotfiles:end -->` markers. The opening marker includes explanatory text; changing marker identity or matching can duplicate installed blocks. Preserve user content outside the block.
+- Preserve recognition of `<!-- pi-seed:begin ... -->` and `<!-- pi-seed:end -->` markers. The opening marker includes explanatory text; changing marker identity or matching can duplicate installed blocks. Preserve user content outside the block.
 - Keep `install.mjs`'s `SELF_SOURCE` and README installation URLs aligned with the GitHub repository name; update them together when renaming.
 - Put only shareable defaults in `setup/settings.json`. Exclude personal themes, default models, `enabledModels`, private providers, and packages containing credentials.
 - `packages` is removed before settings merging and installed individually through `pi install`.
@@ -32,7 +32,7 @@ Initialize a disposable workspace from the repository root:
 
 ```sh
 PI_TEST_REPO=$(pwd)
-PI_TEST_ROOT=$(mktemp -d /tmp/pi-dotfiles-test.XXXXXX)
+PI_TEST_ROOT=$(mktemp -d /tmp/pi-seed-test.XXXXXX)
 export PI_CODING_AGENT_DIR="$PI_TEST_ROOT/agent"
 mkdir -p "$PI_CODING_AGENT_DIR" "$PI_TEST_ROOT/workspace"
 cd "$PI_TEST_ROOT/workspace"

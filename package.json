@@ -1,5 +1,5 @@
 {
-  "name": "pi-dotfiles",
+  "name": "pi-seed",
   "version": "0.2.0",
   "description": "My pi setup: extensions and skills as a pi package, plus an installer for packages, settings, and AGENTS.md",
   "license": "MIT",

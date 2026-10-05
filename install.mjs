@@ -25,12 +25,12 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 /** Where others install this repo from. Change it if you fork or rename the repo. */
-const SELF_SOURCE = "git:github.com/hsuanguo/pi-dotfiles";
+const SELF_SOURCE = "git:github.com/hsuanguo/pi-seed";
 
 const REPO_DIR = dirname(fileURLToPath(import.meta.url));
-const BLOCK_BEGIN = "<!-- pi-dotfiles:begin (managed by pi-dotfiles/install.mjs; edits inside this block are overwritten) -->";
-const BLOCK_END = "<!-- pi-dotfiles:end -->";
-const BLOCK_RE = /<!-- pi-dotfiles:begin[^>]*-->[\s\S]*?<!-- pi-dotfiles:end -->/;
+const BLOCK_BEGIN = "<!-- pi-seed:begin (managed by pi-seed/install.mjs; edits inside this block are overwritten) -->";
+const BLOCK_END = "<!-- pi-seed:end -->";
+const BLOCK_RE = /<!-- pi-seed:begin[^>]*-->[\s\S]*?<!-- pi-seed:end -->/;
 /** The user context file pi loads from the agent directory: the first of these that exists. */
 const CONTEXT_FILES = ["AGENTS.override.md", "AGENTS.md", "AGENTS.MD", "CLAUDE.md", "CLAUDE.MD"];
 
@@ -223,7 +223,7 @@ function applyAgents(dir, opts) {
 function main() {
 	const opts = parseArgs(process.argv.slice(2));
 	const dir = agentDir();
-	console.log(`pi-dotfiles -> ${dir}${opts.dryRun ? " (dry run)" : ""}`);
+	console.log(`pi-seed -> ${dir}${opts.dryRun ? " (dry run)" : ""}`);
 	applySettings(dir, opts);
 	const packagesOk = opts.packages ? applyPackages(dir, opts) : (console.log("\n[2/3] packages: skipped"), true);
 	if (opts.agents) applyAgents(dir, opts);
@@ -235,6 +235,6 @@ function main() {
 try {
 	main();
 } catch (error) {
-	console.error(`pi-dotfiles: ${error.message}`);
+	console.error(`pi-seed: ${error.message}`);
 	process.exitCode = 1;
 }

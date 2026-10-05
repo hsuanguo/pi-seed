@@ -1,4 +1,4 @@
-# pi-dotfiles
+# pi-seed
 
 A small [pi](https://pi.dev) setup, shared as a starting point for your own: extensions, skills,
 packages, default settings, and AGENTS.md.
@@ -19,19 +19,19 @@ This is a starting point, not an endpoint. Your setup should grow with your need
 Requires pi (and therefore Node.js).
 
 ```bash
-git clone https://github.com/hsuanguo/pi-dotfiles && cd pi-dotfiles
+git clone https://github.com/hsuanguo/pi-seed && cd pi-seed
 node install.mjs --dry-run   # preview every change
 node install.mjs
 ```
 
 Then start a new pi session (or `/reload` a running one).
 
-Only want the extensions and skills? `pi install git:github.com/hsuanguo/pi-dotfiles` — this repo is a
+Only want the extensions and skills? `pi install git:github.com/hsuanguo/pi-seed` — this repo is a
 pi package that ships `extensions/` and `skills/`.
 
 Cloning over SSH (e.g. while the repo is private)? Pass the SSH source so the package installs the same way:
-`node install.mjs --self git@github.com:hsuanguo/pi-dotfiles.git` (pi itself needs the `git:` prefix:
-`pi install git:git@github.com:hsuanguo/pi-dotfiles`).
+`node install.mjs --self git@github.com:hsuanguo/pi-seed.git` (pi itself needs the `git:` prefix:
+`pi install git:git@github.com:hsuanguo/pi-seed`).
 
 ## What it does
 
@@ -39,7 +39,7 @@ Cloning over SSH (e.g. while the repo is private)? Pass the SSH source so the pa
 |---|---|---|
 | Settings | `setup/settings.json` | Merged into `~/.pi/agent/settings.json`. Lists are unioned; any value you already set is kept (`--force` takes this setup's value). An explicit `-codemode` of yours is never flipped. Backed up as `settings.json.bak-<time>`. |
 | Packages | `packages` in `setup/settings.json` | `pi install` for each one you don't have yet, plus this repo for its extensions and skills. |
-| AGENTS.md | `setup/AGENTS.md` | Written as a `<!-- pi-dotfiles:begin -->…<!-- pi-dotfiles:end -->` block in your user context file (`AGENTS.md`, or the `CLAUDE.md` / `AGENTS.override.md` you already use). Your own content outside the block is kept; rerunning replaces only the block. Backed up first. |
+| AGENTS.md | `setup/AGENTS.md` | Written as a `<!-- pi-seed:begin -->…<!-- pi-seed:end -->` block in your user context file (`AGENTS.md`, or the `CLAUDE.md` / `AGENTS.override.md` you already use). Your own content outside the block is kept; rerunning replaces only the block. Backed up first. |
 | Extensions | `extensions/` | Loaded from this package, see [Extensions](#extensions). |
 | Skills | `skills/` | Loaded from this package: `skill-creator`. |
 
@@ -77,7 +77,7 @@ To load only some of them, use the object form of the package in `~/.pi/agent/se
 ```json
 {
   "packages": [
-    { "source": "git:github.com/hsuanguo/pi-dotfiles", "extensions": ["!extensions/claude-skills.ts"] }
+    { "source": "git:github.com/hsuanguo/pi-seed", "extensions": ["!extensions/claude-skills.ts"] }
   ]
 }
 ```
@@ -91,7 +91,7 @@ a disposable agent directory and workspace so your existing pi settings and sess
 
 ## Updating
 
-- Extensions and skills: `pi update git:github.com/hsuanguo/pi-dotfiles` (or `pi update --extensions`).
+- Extensions and skills: `pi update git:github.com/hsuanguo/pi-seed` (or `pi update --extensions`).
 - Settings / AGENTS.md / new packages: `git pull && node install.mjs`.
 
 ## Notes
@@ -102,7 +102,7 @@ a disposable agent directory and workspace so your existing pi settings and sess
 ## Uninstall
 
 ```bash
-pi remove git:github.com/hsuanguo/pi-dotfiles   # and any package you don't want: pi remove npm:<name>
+pi remove git:github.com/hsuanguo/pi-seed   # and any package you don't want: pi remove npm:<name>
 ```
 
-Delete the `pi-dotfiles` block from your AGENTS.md, and restore `settings.json.bak-<time>` if you want your old settings back.
+Delete the `pi-seed` block from your AGENTS.md, and restore `settings.json.bak-<time>` if you want your old settings back.
