@@ -15,6 +15,12 @@
  *     exists; `/claude-skills` reports directories skipped for this reason.
  *   - On a name collision, pi's native skills win over Claude skills, and
  *     `~/.claude/skills/` wins over project-level ones.
+ *   - `ancestors` (default) searches cwd and its ancestors up to the Git root.
+ *     `eager` also searches below the Git root (or cwd outside Git), skipping
+ *     hidden directories, node_modules, directory symlinks, and nested Git
+ *     repositories (a `.git` directory or file). It only walks trusted projects
+ *     when project skills are enabled. Ancestor skills win
+ *     over newly discovered skills with the same name.
  *
  * Config (optional, JSON):
  *   - User:    `~/.pi/agent/pi-seed-config.json`
@@ -23,6 +29,7 @@
  *
  *   {
  *     "claudeSkills": {
+ *       "mode": "ancestors",        // or "eager" to include nested directories
  *       "ignoreUserSkills": false,    // true = skip ~/.claude/skills/
  *       "ignoreProjectSkills": false  // true = skip project .claude/skills/
  *     }
@@ -30,7 +37,7 @@
  *
  *   The shared file also accepts a `scopedContext` section, read by scoped-context.ts.
  *   Legacy claude-skills.json files are not read; move their values into `claudeSkills`.
- *   Invalid JSON, unknown keys, and non-boolean values produce a warning and
+ *   Invalid JSON, unknown keys, and invalid values produce a warning and
  *   are ignored. Run `/reload` after editing.
  *
  * Install (user-level, applies to every project):
@@ -47,7 +54,7 @@
  *   - Skills show up in the system prompt alongside native ones.
  *   - Force-load with `/skill:<name>` when the model misses them.
  */
-import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { existsSync, readdirSync, readFileSync, realpathSync, statSync } from "node:fs";
 import { homedir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
 import {
@@ -60,11 +67,13 @@ import {
 const CONFIG_FILE_NAME = "pi-seed-config.json";
 
 interface ClaudeSkillsConfig {
+	mode: "ancestors" | "eager";
 	ignoreUserSkills: boolean;
 	ignoreProjectSkills: boolean;
 }
 
 const DEFAULT_CONFIG: ClaudeSkillsConfig = {
+	mode: "ancestors",
 	ignoreUserSkills: false,
 	ignoreProjectSkills: false,
 };
@@ -154,10 +163,13 @@ function readConfigFile(path: string, warnings: string[]): Partial<ClaudeSkillsC
 	for (const [key, value] of Object.entries(section)) {
 		if (!Object.hasOwn(DEFAULT_CONFIG, key)) {
 			warnings.push(`${path}: unknown key "claudeSkills.${key}", ignored`);
+		} else if (key === "mode") {
+			if (value === "ancestors" || value === "eager") result.mode = value;
+			else warnings.push(`${path}: "claudeSkills.mode" must be "ancestors" or "eager", ignored`);
 		} else if (typeof value !== "boolean") {
 			warnings.push(`${path}: "claudeSkills.${key}" must be a boolean, ignored`);
 		} else {
-			result[key as keyof ClaudeSkillsConfig] = value;
+			result[key as "ignoreUserSkills" | "ignoreProjectSkills"] = value;
 		}
 	}
 	return result;
@@ -188,6 +200,9 @@ function loadConfig(cwd: string, projectTrusted: boolean): LoadedConfig {
  *   the git repository root — the same walk pi uses for `.agents/skills/`.
  *   Outside a git repo the walk continues upward but never checks the
  *   filesystem root (`/.claude/skills/`).
+ * - Eager mode additionally walks below the Git root (or cwd outside Git).
+ *   User and ancestor directories keep their existing priority. Descendant
+ *   scanning requires trust and enabled project skills.
  *
  * Config ignores take precedence over the trust check, so a dir ignored by
  * config is always reported as such.
@@ -205,18 +220,41 @@ function collectClaudeSkillDirs(
 		(config.ignoreUserSkills ? result.ignoredByConfig : result.user).push(userDir);
 	}
 
+	function addProjectDir(dir: string): void {
+		const candidate = join(dir, ".claude", "skills");
+		if (seen.has(candidate) || !isDirectory(candidate)) return;
+		seen.add(candidate);
+		if (config.ignoreProjectSkills) result.ignoredByConfig.push(candidate);
+		else if (projectTrusted) result.project.push(candidate);
+		else result.skippedUntrusted.push(candidate);
+	}
+
 	const gitRoot = findGitRoot(cwd);
 	let current = resolve(cwd);
 	while (dirname(current) !== current) {
-		const candidate = join(current, ".claude", "skills");
-		if (!seen.has(candidate) && isDirectory(candidate)) {
-			seen.add(candidate);
-			if (config.ignoreProjectSkills) result.ignoredByConfig.push(candidate);
-			else if (projectTrusted) result.project.push(candidate);
-			else result.skippedUntrusted.push(candidate);
-		}
+		addProjectDir(current);
 		if (current === gitRoot) break;
 		current = dirname(current);
+	}
+	if (config.mode === "eager" && projectTrusted && !config.ignoreProjectSkills) {
+		const pending = [gitRoot ?? resolve(cwd)];
+		while (pending.length > 0) {
+			const dir = pending.pop()!;
+			addProjectDir(dir);
+			let entries;
+			try {
+				entries = readdirSync(dir, { withFileTypes: true });
+			} catch {
+				continue;
+			}
+			entries.sort((left, right) => right.name.localeCompare(left.name));
+			for (const entry of entries) {
+				if (!entry.isDirectory() || entry.name.startsWith(".") || entry.name === "node_modules") continue;
+				const child = join(dir, entry.name);
+				if (existsSync(join(child, ".git"))) continue;
+				pending.push(child);
+			}
+		}
 	}
 	return result;
 }
@@ -273,6 +311,7 @@ export default function (pi: ExtensionAPI) {
 			const scanned = [...dirs.user, ...dirs.project];
 
 			const header: string[] = [];
+			header.push(`Mode: ${config.mode}`);
 			header.push(`Config: ${sources.length > 0 ? sources.join(", ") : "(none, using defaults)"}`);
 			for (const warning of warnings) header.push(`  ⚠ ${warning}`);
 
