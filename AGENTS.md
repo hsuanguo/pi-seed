@@ -10,7 +10,7 @@ Share a minimal, stable, reliable pi setup as a starting point others can adapt.
 
 ## Installer Compatibility & Shared Defaults
 
-- Preserve recognition of `<!-- pi-seed:begin ... -->` and `<!-- pi-seed:end -->` markers. The opening marker includes explanatory text; changing marker identity or matching can duplicate installed blocks. Preserve user content outside the block.
+- Copy `setup/AGENTS.md` without boundary markers only when no supported user context file exists. Otherwise skip it and tell the user to maintain their context manually, even with `--force`. Never overwrite or append to an existing context file.
 - Keep `install.mjs`'s `SELF_SOURCE` and README installation URLs aligned with the GitHub repository name; update them together when renaming.
 - Put only shareable defaults in `setup/settings.json`. Exclude personal themes, default models, `enabledModels`, private providers, and packages containing credentials.
 - `packages` is removed before settings merging and installed individually through `pi install`.

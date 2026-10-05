@@ -6,8 +6,8 @@
  *                  are written only where you have none yet (--force overwrites). Backed up first.
  *   2. packages  - runs `pi install` for every package in setup/settings.json that is not installed,
  *                  plus this repo itself (which ships the skills).
- *   3. AGENTS.md - writes setup/AGENTS.md as a marked block in your user context file. Your own
- *                  content outside the block is kept; rerunning replaces only the block.
+ *   3. AGENTS.md - copies setup/AGENTS.md only if no user context file exists. Existing context
+ *                  files are left untouched; maintain them yourself.
  *
  * Options:
  *   --dry-run       Print what would change, change nothing.
@@ -28,9 +28,6 @@ import { fileURLToPath } from "node:url";
 const SELF_SOURCE = "git:github.com/hsuanguo/pi-seed";
 
 const REPO_DIR = dirname(fileURLToPath(import.meta.url));
-const BLOCK_BEGIN = "<!-- pi-seed:begin (managed by pi-seed/install.mjs; edits inside this block are overwritten) -->";
-const BLOCK_END = "<!-- pi-seed:end -->";
-const BLOCK_RE = /<!-- pi-seed:begin[^>]*-->[\s\S]*?<!-- pi-seed:end -->/;
 /** The user context file pi loads from the agent directory: the first of these that exists. */
 const CONTEXT_FILES = ["AGENTS.override.md", "AGENTS.md", "AGENTS.MD", "CLAUDE.md", "CLAUDE.MD"];
 
@@ -196,27 +193,17 @@ function applyPackages(dir, opts) {
 
 function applyAgents(dir, opts) {
 	console.log("\n[3/3] AGENTS.md");
-	const body = readFileSync(join(REPO_DIR, "setup", "AGENTS.md"), "utf8").trim();
-	const block = `${BLOCK_BEGIN}\n${body}\n${BLOCK_END}`;
-	const name = CONTEXT_FILES.find((file) => existsSync(join(dir, file))) ?? "AGENTS.md";
-	const path = join(dir, name);
-	const current = existsSync(path) ? readFileSync(path, "utf8") : "";
-	const next = BLOCK_RE.test(current)
-		? current.replace(BLOCK_RE, block)
-		: current.trim() === ""
-			? `${block}\n`
-			: `${current.trimEnd()}\n\n${block}\n`;
-	if (next === current) {
-		console.log(`  ${name} is up to date`);
+	const name = CONTEXT_FILES.find((file) => existsSync(join(dir, file)));
+	const source = join(REPO_DIR, "setup", "AGENTS.md");
+	if (name) {
+		console.log(`  = ${join(dir, name)} already exists; skipped. Maintain it yourself; merge any wanted changes from ${source} manually.`);
 		return;
 	}
-	const action = current === "" ? "create" : BLOCK_RE.test(current) ? "update block in" : "append block to";
-	console.log(`  ${action} ${path}`);
-	const saved = backup(path, opts.dryRun);
-	if (saved) console.log(`  backup: ${saved}`);
+	const path = join(dir, "AGENTS.md");
+	console.log(`  copy ${source} -> ${path}`);
 	if (!opts.dryRun) {
 		mkdirSync(dir, { recursive: true });
-		writeFileSync(path, next);
+		copyFileSync(source, path);
 	}
 }
 

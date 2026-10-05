@@ -32,10 +32,13 @@
  * Both modes skip `node_modules` and hidden directories. `--no-context-files` disables the extension.
  *
  * Config (optional, JSON; run /reload after editing):
- *   - User:    ~/.pi/agent/scoped-context.json
- *   - Project: <cwd>/.pi/scoped-context.json (read only when the project is trusted; overrides user)
+ *   - User:    ~/.pi/agent/pi-seed-config.json
+ *   - Project: <cwd>/.pi/pi-seed-config.json (read only when the project is trusted; overrides user)
  *
- *   { "mode": "lazy" }   // or "eager"
+ *   { "scopedContext": { "mode": "lazy" } }   // or "eager"
+ *
+ * The shared file also accepts a `claudeSkills` section, read by claude-skills.ts.
+ * Legacy scoped-context.json files are not read; move their values into `scopedContext`.
  *
  * `/scoped-context` shows the mode, the config files read, and the files in context.
  *
@@ -49,7 +52,7 @@ import { basename, dirname, isAbsolute, join, relative, resolve, sep } from "nod
 import { CONFIG_DIR_NAME, type ExtensionAPI, getAgentDir } from "@earendil-works/pi-coding-agent";
 
 export const ENTRY_TYPE = "scoped-context";
-export const CONFIG_FILE_NAME = "scoped-context.json";
+export const CONFIG_FILE_NAME = "pi-seed-config.json";
 /** Same names and precedence as pi's own context-file discovery. */
 export const CONTEXT_FILE_NAMES = ["AGENTS.override.md", "AGENTS.md", "AGENTS.MD", "CLAUDE.md", "CLAUDE.MD"];
 /** Built-in tools whose `path` argument names what they touch. */
@@ -249,11 +252,20 @@ function readConfigFile(path: string, warnings: string[]): Partial<Config> | und
 		warnings.push(`${path}: expected a JSON object`);
 		return undefined;
 	}
+	for (const key of Object.keys(raw)) {
+		if (key !== "claudeSkills" && key !== "scopedContext") warnings.push(`${path}: unknown section "${key}"`);
+	}
+	const section = (raw as Record<string, unknown>).scopedContext;
+	if (section === undefined) return {};
+	if (typeof section !== "object" || section === null || Array.isArray(section)) {
+		warnings.push(`${path}: "scopedContext" must be a JSON object`);
+		return undefined;
+	}
 	const result: Partial<Config> = {};
-	for (const [key, value] of Object.entries(raw)) {
-		if (key !== "mode") warnings.push(`${path}: unknown key "${key}"`);
+	for (const [key, value] of Object.entries(section)) {
+		if (key !== "mode") warnings.push(`${path}: unknown key "scopedContext.${key}"`);
 		else if (value === "lazy" || value === "eager") result.mode = value;
-		else warnings.push(`${path}: "mode" must be "lazy" or "eager"`);
+		else warnings.push(`${path}: "scopedContext.mode" must be "lazy" or "eager"`);
 	}
 	return result;
 }

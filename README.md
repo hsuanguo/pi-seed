@@ -39,7 +39,7 @@ Cloning over SSH (e.g. while the repo is private)? Pass the SSH source so the pa
 |---|---|---|
 | Settings | `setup/settings.json` | Merged into `~/.pi/agent/settings.json`. Lists are unioned; any value you already set is kept (`--force` takes this setup's value). An explicit `-codemode` of yours is never flipped. Backed up as `settings.json.bak-<time>`. |
 | Packages | `packages` in `setup/settings.json` | `pi install` for each one you don't have yet, plus this repo for its extensions and skills. |
-| AGENTS.md | `setup/AGENTS.md` | Written as a `<!-- pi-seed:begin -->…<!-- pi-seed:end -->` block in your user context file (`AGENTS.md`, or the `CLAUDE.md` / `AGENTS.override.md` you already use). Your own content outside the block is kept; rerunning replaces only the block. Backed up first. |
+| AGENTS.md | `setup/AGENTS.md` | Copied directly to your agent directory without boundary markers, only if no supported context file exists (`AGENTS.override.md`, `AGENTS.md`, `AGENTS.MD`, `CLAUDE.md`, or `CLAUDE.MD`). Otherwise skipped with a reminder to maintain it yourself, even with `--force`. |
 | Extensions | `extensions/` | Loaded from this package, see [Extensions](#extensions). |
 | Skills | `skills/` | Loaded from this package: `skill-creator`. |
 
@@ -67,10 +67,33 @@ in your own setup unless they serve a clear, common need.
 
 | Extension | What it does | Command |
 |---|---|---|
-| `claude-skills.ts` | Loads skills from `~/.claude/skills/` and project `.claude/skills/` (trusted projects only). Config: `~/.pi/agent/claude-skills.json`. | `/claude-skills` |
-| `scoped-context.ts` | Loads `AGENTS.md` / `CLAUDE.md` from subdirectories of the working directory: `lazy` (default) appends a file the first time a tool touches a path below it; `eager` adds all of them to the system prompt. Config: `~/.pi/agent/scoped-context.json`, e.g. `{ "mode": "eager" }`. | `/scoped-context` |
+| `claude-skills.ts` | Loads skills from `~/.claude/skills/` and project `.claude/skills/` (trusted projects only). Config: `claudeSkills` in `pi-seed-config.json`. | `/claude-skills` |
+| `scoped-context.ts` | Loads `AGENTS.md` / `CLAUDE.md` from subdirectories of the working directory: `lazy` (default) appends a file the first time a tool touches a path below it; `eager` adds all of them to the system prompt. Config: `scopedContext` in `pi-seed-config.json`. | `/scoped-context` |
 
 Details are in the comment at the top of each file.
+
+Both extensions use the same optional configuration file: `~/.pi/agent/pi-seed-config.json`
+(or `$PI_CODING_AGENT_DIR/pi-seed-config.json`), with project overrides in
+`<cwd>/.pi/pi-seed-config.json`. Project configuration is read only when the project is trusted;
+valid project values override user values field by field. Missing sections use defaults.
+
+```json
+{
+  "claudeSkills": {
+    "ignoreUserSkills": false,
+    "ignoreProjectSkills": false
+  },
+  "scopedContext": {
+    "mode": "lazy"
+  }
+}
+```
+
+Invalid JSON, invalid section types, unknown sections or fields, and invalid values produce
+warnings; invalid values do not replace valid user values. Run `/reload` after editing.
+The installer does not create or migrate this optional file. To migrate existing configuration,
+move values from `claude-skills.json` into `claudeSkills` and from `scoped-context.json` into
+`scopedContext`, at the same user or project scope. The old files are no longer read.
 
 To load only some of them, use the object form of the package in `~/.pi/agent/settings.json`:
 
@@ -92,7 +115,8 @@ a disposable agent directory and workspace so your existing pi settings and sess
 ## Updating
 
 - Extensions and skills: `pi update git:github.com/hsuanguo/pi-seed` (or `pi update --extensions`).
-- Settings / AGENTS.md / new packages: `git pull && node install.mjs`.
+- Settings / new packages: `git pull && node install.mjs`.
+- User context: manually merge any wanted changes from `setup/AGENTS.md`. Existing files, including those installed by older versions, are left untouched.
 
 ## Notes
 
@@ -105,4 +129,4 @@ a disposable agent directory and workspace so your existing pi settings and sess
 pi remove git:github.com/hsuanguo/pi-seed   # and any package you don't want: pi remove npm:<name>
 ```
 
-Delete the `pi-seed` block from your AGENTS.md, and restore `settings.json.bak-<time>` if you want your old settings back.
+Remove the copied instructions from your user context file manually, keeping any custom content. Restore `settings.json.bak-<time>` if you want your old settings back.

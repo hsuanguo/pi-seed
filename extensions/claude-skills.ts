@@ -17,15 +17,19 @@
  *     `~/.claude/skills/` wins over project-level ones.
  *
  * Config (optional, JSON):
- *   - User:    `~/.pi/agent/claude-skills.json`
- *   - Project: `<cwd>/.pi/claude-skills.json` (only read when the project is
+ *   - User:    `~/.pi/agent/pi-seed-config.json`
+ *   - Project: `<cwd>/.pi/pi-seed-config.json` (only read when the project is
  *     trusted; overrides user values key by key)
  *
  *   {
- *     "ignoreUserSkills": false,    // true = skip ~/.claude/skills/
- *     "ignoreProjectSkills": false  // true = skip project .claude/skills/
+ *     "claudeSkills": {
+ *       "ignoreUserSkills": false,    // true = skip ~/.claude/skills/
+ *       "ignoreProjectSkills": false  // true = skip project .claude/skills/
+ *     }
  *   }
  *
+ *   The shared file also accepts a `scopedContext` section, read by scoped-context.ts.
+ *   Legacy claude-skills.json files are not read; move their values into `claudeSkills`.
  *   Invalid JSON, unknown keys, and non-boolean values produce a warning and
  *   are ignored. Run `/reload` after editing.
  *
@@ -53,7 +57,7 @@ import {
 	loadSkillsFromDir,
 } from "@earendil-works/pi-coding-agent";
 
-const CONFIG_FILE_NAME = "claude-skills.json";
+const CONFIG_FILE_NAME = "pi-seed-config.json";
 
 interface ClaudeSkillsConfig {
 	ignoreUserSkills: boolean;
@@ -137,12 +141,21 @@ function readConfigFile(path: string, warnings: string[]): Partial<ClaudeSkillsC
 		warnings.push(`${path}: expected a JSON object, ignored`);
 		return {};
 	}
+	for (const key of Object.keys(raw)) {
+		if (key !== "claudeSkills" && key !== "scopedContext") warnings.push(`${path}: unknown section "${key}", ignored`);
+	}
+	const section = (raw as Record<string, unknown>).claudeSkills;
+	if (section === undefined) return {};
+	if (typeof section !== "object" || section === null || Array.isArray(section)) {
+		warnings.push(`${path}: "claudeSkills" must be a JSON object, ignored`);
+		return {};
+	}
 	const result: Partial<ClaudeSkillsConfig> = {};
-	for (const [key, value] of Object.entries(raw)) {
-		if (!(key in DEFAULT_CONFIG)) {
-			warnings.push(`${path}: unknown key "${key}", ignored`);
+	for (const [key, value] of Object.entries(section)) {
+		if (!Object.hasOwn(DEFAULT_CONFIG, key)) {
+			warnings.push(`${path}: unknown key "claudeSkills.${key}", ignored`);
 		} else if (typeof value !== "boolean") {
-			warnings.push(`${path}: "${key}" must be a boolean, ignored`);
+			warnings.push(`${path}: "claudeSkills.${key}" must be a boolean, ignored`);
 		} else {
 			result[key as keyof ClaudeSkillsConfig] = value;
 		}
