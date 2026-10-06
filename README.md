@@ -1,7 +1,17 @@
-# pi-seed
+<p align="center">
+  <img src="assets/pi-seed-logo.png" alt="pi-seed — a pixel-art seed sprouting a π-shaped stem" width="256" />
+</p>
 
-A small [pi](https://pi.dev) setup, shared as a starting point for your own: extensions, a skills directory,
-packages, reusable prompts, default settings, and AGENTS.md.
+<p align="center">
+  <strong>A minimal <a href="https://pi.dev">pi</a> setup you can make your own.</strong><br />
+  Extensions, skills, packages, reusable prompts, settings, and agent instructions.
+</p>
+
+<p align="center">
+  <a href="#install">Install</a> ·
+  <a href="#what-it-does">What's included</a> ·
+  <a href="#make-it-your-own">Make it your own</a>
+</p>
 
 ## Philosophy
 
