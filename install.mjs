@@ -8,14 +8,17 @@
  *                  plus this repo itself (which ships the extensions).
  *   3. AGENTS.md - copies setup/AGENTS.md only if no user context file exists. Existing context
  *                  files are left untouched; maintain them yourself.
+ *   4. prompts   - copies improve-agents-md to the global prompts directory. Existing content
+ *                  is kept unless --force; changed files are backed up before replacement.
  *
  * Options:
  *   --dry-run       Print what would change, change nothing.
- *   --force         Overwrite settings you already have with this setup's values.
+ *   --force         Overwrite settings and prompts with this setup's values (backed up first).
  *   --self <src>    Package source for this repo (default: SELF_SOURCE below).
  *   --no-self       Do not install this repo.
  *   --no-packages   Skip `pi install`.
  *   --no-agents     Skip AGENTS.md.
+ *   --no-prompts    Skip prompt templates.
  */
 
 import { spawnSync } from "node:child_process";
@@ -32,7 +35,7 @@ const REPO_DIR = dirname(fileURLToPath(import.meta.url));
 const CONTEXT_FILES = ["AGENTS.override.md", "AGENTS.md", "AGENTS.MD", "CLAUDE.md", "CLAUDE.MD"];
 
 function parseArgs(argv) {
-	const opts = { dryRun: false, force: false, self: SELF_SOURCE, packages: true, agents: true };
+	const opts = { dryRun: false, force: false, self: SELF_SOURCE, packages: true, agents: true, prompts: true };
 	for (let i = 0; i < argv.length; i++) {
 		const arg = argv[i];
 		if (arg === "--dry-run") opts.dryRun = true;
@@ -40,6 +43,7 @@ function parseArgs(argv) {
 		else if (arg === "--no-self") opts.self = undefined;
 		else if (arg === "--no-packages") opts.packages = false;
 		else if (arg === "--no-agents") opts.agents = false;
+		else if (arg === "--no-prompts") opts.prompts = false;
 		else if (arg === "--self") {
 			const value = argv[++i];
 			if (!value) throw new Error("--self needs a package source");
@@ -153,7 +157,7 @@ function runPi(args, dryRun) {
 }
 
 function applySettings(dir, opts) {
-	console.log("\n[1/3] settings");
+	console.log("\n[1/4] settings");
 	const incoming = readJson(join(REPO_DIR, "setup", "settings.json"), {});
 	delete incoming.packages; // installed through `pi install` in step 2
 	const path = join(dir, "settings.json");
@@ -173,7 +177,7 @@ function applySettings(dir, opts) {
 }
 
 function applyPackages(dir, opts) {
-	console.log("\n[2/3] packages");
+	console.log("\n[2/4] packages");
 	const wanted = [...(readJson(join(REPO_DIR, "setup", "settings.json"), {}).packages ?? [])];
 	if (opts.self) wanted.push(opts.self);
 	const installed = new Set(
@@ -192,7 +196,7 @@ function applyPackages(dir, opts) {
 }
 
 function applyAgents(dir, opts) {
-	console.log("\n[3/3] AGENTS.md");
+	console.log("\n[3/4] AGENTS.md");
 	const name = CONTEXT_FILES.find((file) => existsSync(join(dir, file)));
 	const source = join(REPO_DIR, "setup", "AGENTS.md");
 	if (name) {
@@ -207,14 +211,40 @@ function applyAgents(dir, opts) {
 	}
 }
 
+function applyPrompts(dir, opts) {
+	console.log("\n[4/4] prompts");
+	const name = "improve-agents-md.md";
+	const source = join(REPO_DIR, "setup", "prompts", name);
+	const path = join(dir, "prompts", name);
+	if (existsSync(path)) {
+		if (readFileSync(path, "utf8") === readFileSync(source, "utf8")) {
+			console.log(`  = ${path} (already installed)`);
+			return;
+		}
+		if (!opts.force) {
+			console.log(`  = ${path}: kept yours (--force to replace it)`);
+			return;
+		}
+	}
+	console.log(`  copy ${source} -> ${path}`);
+	const saved = backup(path, opts.dryRun);
+	if (saved) console.log(`  backup: ${saved}`);
+	if (!opts.dryRun) {
+		mkdirSync(dirname(path), { recursive: true });
+		copyFileSync(source, path);
+	}
+}
+
 function main() {
 	const opts = parseArgs(process.argv.slice(2));
 	const dir = agentDir();
 	console.log(`pi-seed -> ${dir}${opts.dryRun ? " (dry run)" : ""}`);
 	applySettings(dir, opts);
-	const packagesOk = opts.packages ? applyPackages(dir, opts) : (console.log("\n[2/3] packages: skipped"), true);
+	const packagesOk = opts.packages ? applyPackages(dir, opts) : (console.log("\n[2/4] packages: skipped"), true);
 	if (opts.agents) applyAgents(dir, opts);
-	else console.log("\n[3/3] AGENTS.md: skipped");
+	else console.log("\n[3/4] AGENTS.md: skipped");
+	if (opts.prompts) applyPrompts(dir, opts);
+	else console.log("\n[4/4] prompts: skipped");
 	console.log(`\nDone${opts.dryRun ? " (dry run, nothing changed)" : ""}. Start a new pi session, or /reload in a running one.`);
 	if (!packagesOk) process.exitCode = 1;
 }

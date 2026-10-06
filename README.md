@@ -1,7 +1,7 @@
 # pi-seed
 
 A small [pi](https://pi.dev) setup, shared as a starting point for your own: extensions, a skills directory,
-packages, default settings, and AGENTS.md.
+packages, a reusable prompt, default settings, and AGENTS.md.
 
 ## Philosophy
 
@@ -40,23 +40,40 @@ Cloning over SSH (e.g. while the repo is private)? Pass the SSH source so the pa
 | Settings | `setup/settings.json` | Merged into `~/.pi/agent/settings.json`. Lists are unioned; any value you already set is kept (`--force` takes this setup's value). An explicit `-codemode` of yours is never flipped. Backed up as `settings.json.bak-<time>`. |
 | Packages | `packages` in `setup/settings.json` | `pi install` for each one you don't have yet, plus this repo for its extensions and skills. |
 | AGENTS.md | `setup/AGENTS.md` | Copied directly to your agent directory without boundary markers, only if no supported context file exists (`AGENTS.override.md`, `AGENTS.md`, `AGENTS.MD`, `CLAUDE.md`, or `CLAUDE.MD`). Otherwise skipped with a reminder to maintain it yourself, even with `--force`. |
+| Prompt | [setup/prompts/improve-agents-md.md](setup/prompts/improve-agents-md.md) | Copied to `~/.pi/agent/prompts/improve-agents-md.md`. Existing content is kept; `--force` replaces it after backing it up. Identical content is skipped. |
 | Extensions | `extensions/` | Loaded from this package, see [Extensions](#extensions). |
 | Skills | `skills/` | Includes [background-tasks](skills/background-tasks/SKILL.md) for background execution, scheduled checks, reminders, and recurring tasks using pi-subagents. See [skills/README.md](skills/README.md). |
 
 Rerunning is safe: anything already in place is skipped.
 
-Options: `--dry-run`, `--force`, `--no-packages`, `--no-agents`, `--no-self`, `--self <source>`.
+Options: `--dry-run`, `--force`, `--no-packages`, `--no-agents`, `--no-prompts`, `--no-self`, `--self <source>`.
 `PI_CODING_AGENT_DIR` targets another agent directory, e.g. for a trial run:
 
 ```bash
 PI_CODING_AGENT_DIR=/tmp/pi-try node install.mjs --self ./
 ```
 
+## Improve Agent Instructions
+
+The installer adds `/improve-agents-md` globally, available in any project after
+starting a new pi session or running `/reload`:
+
+```text
+/improve-agents-md
+/improve-agents-md packages/api/AGENTS.md
+/improve-agents-md "/path/to/another project/AGENTS.md" audit-only
+```
+
+The prompt checks clarity, duplication, and project-specific constraints. It reports
+findings and proposes a minimal patch without editing until approved; `audit-only`
+reports findings without proposing a patch. It defaults to `AGENTS.md` in cwd.
+The prompt is installed by `install.mjs`, not by `pi install` alone.
+
 ## Make it your own
 
 Before installing, review `setup/settings.json` and `setup/AGENTS.md`. Adjust the package list,
 defaults, and instructions to fit your workflow, then preview the changes with `--dry-run`.
-Use `--no-packages` or `--no-agents` to skip those parts, or install just the extensions and skills
+Use `--no-packages`, `--no-agents`, or `--no-prompts` to skip those parts, or install just the extensions and skills
 with the pi package command above. The [extension selection example](#extensions) lets you choose
 which extensions to load.
 
@@ -137,6 +154,7 @@ touch your pi settings or sessions. Use `pi -e ./` to try this checkout for one 
 
 - Extensions and skills: `pi update git:github.com/hsuanguo/pi-seed` (or `pi update --extensions`).
 - Settings / new packages: `git pull && node install.mjs`.
+- Prompt: rerun the installer; existing content is kept. To take an updated template, use `--force` (also replaces differing settings; both are backed up).
 - User context: manually merge any wanted changes from `setup/AGENTS.md`. Existing files, including those installed by older versions, are left untouched.
 
 ## Notes
@@ -150,3 +168,4 @@ pi remove git:github.com/hsuanguo/pi-seed   # and any package you don't want: pi
 ```
 
 Remove the copied instructions from your user context file manually, keeping any custom content. Restore `settings.json.bak-<time>` if you want your old settings back.
+Remove `prompts/improve-agents-md.md` from your pi agent directory to uninstall the prompt.
