@@ -47,7 +47,7 @@ function setup(template: object = TEMPLATE, agents = "## Shared rules\n- be clea
 	sandbox.write("repo/install.mjs", readFileSync(join(REPO_DIR, "install.mjs"), "utf8"));
 	sandbox.write("repo/setup/settings.json", JSON.stringify(template));
 	sandbox.write("repo/setup/AGENTS.md", agents);
-	for (const name of ["improve-agents-md.md", "show-me.md", "pr-sitter.md"]) {
+	for (const name of ["improve-agents-md.md", "show-me.md"]) {
 		sandbox.write(`repo/setup/prompts/${name}`, readFileSync(join(REPO_DIR, "setup/prompts", name), "utf8"));
 	}
 	const bin = sandbox.write("bin/pi", FAKE_PI);
@@ -154,31 +154,18 @@ test("global prompts install, load in pi, expand arguments, and remain idempoten
 	assert.equal(env.read("prompts/show-me.md"), readFileSync(join(REPO_DIR, "setup/prompts/show-me.md"), "utf8"));
 	assert.match(expandPromptTemplate("/show-me", loaded.templates), /Explain the current discussion point visually\./);
 	assert.match(expandPromptTemplate("/show-me installer control flow", loaded.templates), /Explain installer control flow visually\./);
-	const prSitter = loaded.templates.find((template) => template.name === "pr-sitter");
-	assert.ok(prSitter);
-	assert.equal(prSitter.argumentHint, "<review|maintain|watch> <PR URL or number> [interval] [deadline or maximum checks]");
-	const prSitterContent = readFileSync(join(REPO_DIR, "setup/prompts/pr-sitter.md"), "utf8");
-	assert.equal(env.read("prompts/pr-sitter.md"), prSitterContent);
-	assert.match(expandPromptTemplate("/pr-sitter", loaded.templates), /Mode: watch/);
-	for (const mode of ["review", "maintain", "watch"]) {
-		const expandedSitter = expandPromptTemplate(`/pr-sitter ${mode} https://github.com/example/repo/pull/42 10m 24h`, loaded.templates);
-		assert.ok(expandedSitter.includes(`Mode: ${mode}`));
-		assert.match(expandedSitter, /Pull request: https:\/\/github\.com\/example\/repo\/pull\/42/);
-		assert.match(expandedSitter, /Additional instructions: 10m 24h/);
-	}
 	const second = env.run(["--no-packages", "--force"]);
 	assert.equal(second.status, 0, second.stderr);
 	assert.match(second.stdout, /already installed/);
 	assert.equal(env.read("prompts/improve-agents-md.md"), original);
 	assert.equal(env.read("prompts/show-me.md"), readFileSync(join(REPO_DIR, "setup/prompts/show-me.md"), "utf8"));
-	assert.equal(env.read("prompts/pr-sitter.md"), prSitterContent);
-	assert.deepEqual(readdirSync(join(env.sandbox.agentDir, "prompts")).sort(), ["improve-agents-md.md", "pr-sitter.md", "show-me.md"]);
+	assert.deepEqual(readdirSync(join(env.sandbox.agentDir, "prompts")).sort(), ["improve-agents-md.md", "show-me.md"]);
 });
 
 test("existing global prompts are preserved unless forced, then backed up", () => {
 	const env = setup();
 	const original = "My custom prompt\n";
-	const names = ["improve-agents-md.md", "pr-sitter.md", "show-me.md"];
+	const names = ["improve-agents-md.md", "show-me.md"];
 	for (const name of names) env.sandbox.write(`agent/prompts/${name}`, original);
 	for (const args of [["--no-packages"], ["--no-packages", "--force", "--dry-run"]]) {
 		const result = env.run(args);
@@ -260,7 +247,7 @@ test("the shipped template is valid and holds only shareable defaults", () => {
 	assert.match(readFileSync(join(REPO_DIR, "install.mjs"), "utf8"), /const SELF_SOURCE = "git:github\.com\/hsuanguo\/pi-seed";/);
 });
 
-test("the package ships the background-tasks skill referenced by the context template", () => {
+test("the package ships background-tasks and the model-invocable English PR sitting skill", () => {
 	const manifest = JSON.parse(readFileSync(join(REPO_DIR, "package.json"), "utf8"));
 	const loaded = manifest.pi.skills.map((dir: string) => loadSkillsFromDir({ dir: join(REPO_DIR, dir), source: "path" }));
 	const skills = loaded.flatMap((result: ReturnType<typeof loadSkillsFromDir>) => result.skills);
@@ -270,4 +257,52 @@ test("the package ships the background-tasks skill referenced by the context tem
 	assert.ok(skill, "declared pi.skills must discover background-tasks");
 	assert.equal(skill.filePath, join(REPO_DIR, "skills/background-tasks/SKILL.md"));
 	assert.match(readFileSync(join(REPO_DIR, "setup/AGENTS.md"), "utf8"), /load the `background-tasks` skill/);
+	const prSitting = skills.find((candidate: (typeof skills)[number]) => candidate.name === "pr-sitting");
+	assert.ok(prSitting, "declared pi.skills must discover pr-sitting");
+	assert.ok(!skills.some((candidate: (typeof skills)[number]) => candidate.name === "pr-sitter"));
+	assert.equal(prSitting.filePath, join(REPO_DIR, "skills/pr-sitting/SKILL.md"));
+	assert.equal(prSitting.disableModelInvocation, false);
+	const content = readFileSync(prSitting.filePath, "utf8");
+	assert.match(content, /^[\x00-\x7F]*$/);
+	assert.doesNotMatch(content, /\$\{|\$2/);
+	assert.match(prSitting.description, /reviewing.*maintain.*watch/s);
+	for (const mode of ["Review", "Maintain", "Watch"]) assert.ok(content.includes(`### ${mode}`));
+	assert.match(content, /Load the `background-tasks` skill/);
+	assert.match(content, /Merely discovering, editing, or discussing this skill does not start a live sitter or authorize mutations/);
+});
+
+test("PR sitting evals cover the three modes and negative activation with valid assertions", () => {
+	const dataset = JSON.parse(readFileSync(join(REPO_DIR, "skills/pr-sitting/evals/evals.json"), "utf8"));
+	assert.equal(dataset.skill_name, "pr-sitting");
+	assert.ok(Array.isArray(dataset.evals));
+	const ids = new Set<number>();
+	const modes = new Set<string>();
+	let negativeCases = 0;
+	for (const entry of dataset.evals) {
+		assert.ok(Number.isInteger(entry.id) && entry.id > 0);
+		assert.ok(!ids.has(entry.id), `duplicate eval id: ${entry.id}`);
+		ids.add(entry.id);
+		for (const field of ["prompt", "expected_output"]) {
+			assert.equal(typeof entry[field], "string");
+			assert.ok(entry[field].trim());
+			assert.match(entry[field], /^[\x00-\x7F]*$/);
+		}
+		assert.equal(typeof entry.should_trigger, "boolean");
+		assert.ok([null, "review", "maintain", "watch"].includes(entry.expected_mode));
+		assert.deepEqual(entry.files, []);
+		assert.ok(Array.isArray(entry.expectations) && entry.expectations.length > 0);
+		for (const expectation of entry.expectations) {
+			assert.equal(typeof expectation, "string");
+			assert.ok(expectation.trim());
+			assert.match(expectation, /^[\x00-\x7F]*$/);
+		}
+		if (entry.expected_mode) modes.add(entry.expected_mode);
+		if (!entry.should_trigger) {
+			assert.equal(entry.expected_mode, null);
+			negativeCases++;
+		}
+	}
+	assert.deepEqual([...modes].sort(), ["maintain", "review", "watch"]);
+	assert.ok(negativeCases >= 2);
+	assert.match(readFileSync(join(REPO_DIR, "skills/pr-sitting/SKILL.md"), "utf8"), /\.\/evals\/evals\.json/);
 });

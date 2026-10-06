@@ -8,7 +8,7 @@
  *                  plus this repo itself (which ships the extensions).
  *   3. AGENTS.md - copies setup/AGENTS.md only if no user context file exists. Existing context
  *                  files are left untouched; maintain them yourself.
- *   4. prompts   - copies improve-agents-md, show-me, and pr-sitter to the global prompts directory. Existing content
+ *   4. prompts   - copies improve-agents-md and show-me to the global prompts directory. Existing content
  *                  is kept unless --force; changed files are backed up before replacement.
  *
  * Options:
@@ -213,7 +213,7 @@ function applyAgents(dir, opts) {
 
 function applyPrompts(dir, opts) {
 	console.log("\n[4/4] prompts");
-	for (const name of ["improve-agents-md.md", "show-me.md", "pr-sitter.md"]) {
+	for (const name of ["improve-agents-md.md", "show-me.md"]) {
 		const source = join(REPO_DIR, "setup", "prompts", name);
 		const path = join(dir, "prompts", name);
 		if (existsSync(path)) {
