@@ -47,7 +47,9 @@ function setup(template: object = TEMPLATE, agents = "## Shared rules\n- be clea
 	sandbox.write("repo/install.mjs", readFileSync(join(REPO_DIR, "install.mjs"), "utf8"));
 	sandbox.write("repo/setup/settings.json", JSON.stringify(template));
 	sandbox.write("repo/setup/AGENTS.md", agents);
-	sandbox.write("repo/setup/prompts/improve-agents-md.md", readFileSync(join(REPO_DIR, "setup/prompts/improve-agents-md.md"), "utf8"));
+	for (const name of ["improve-agents-md.md", "show-me.md"]) {
+		sandbox.write(`repo/setup/prompts/${name}`, readFileSync(join(REPO_DIR, "setup/prompts", name), "utf8"));
+	}
 	const bin = sandbox.write("bin/pi", FAKE_PI);
 	chmodSync(bin, 0o755);
 	const log = sandbox.write("pi-calls.log", "");
@@ -132,7 +134,7 @@ test("--dry-run changes nothing and calls no pi", () => {
 	assert.ok(!existsSync(join(env.sandbox.agentDir, "prompts")));
 });
 
-test("global prompt installs, loads in pi, expands arguments, and remains idempotent", () => {
+test("global prompts install, load in pi, expand arguments, and remain idempotent", () => {
 	const env = setup();
 	assert.equal(env.run(["--no-packages"]).status, 0);
 	const original = env.read("prompts/improve-agents-md.md");
@@ -146,29 +148,39 @@ test("global prompt installs, loads in pi, expands arguments, and remains idempo
 	const expanded = expandPromptTemplate('/improve-agents-md "/other project/AGENTS.md" audit-only', loaded.templates);
 	assert.match(expanded, /Review the agent instructions at \/other project\/AGENTS\.md\./);
 	assert.match(expanded, /Additional request: audit-only/);
+	const showMe = loaded.templates.find((template) => template.name === "show-me");
+	assert.ok(showMe);
+	assert.equal(showMe.argumentHint, "[topic]");
+	assert.equal(env.read("prompts/show-me.md"), readFileSync(join(REPO_DIR, "setup/prompts/show-me.md"), "utf8"));
+	assert.match(expandPromptTemplate("/show-me", loaded.templates), /Explain the current discussion point visually\./);
+	assert.match(expandPromptTemplate("/show-me installer control flow", loaded.templates), /Explain installer control flow visually\./);
 	const second = env.run(["--no-packages", "--force"]);
 	assert.equal(second.status, 0, second.stderr);
 	assert.match(second.stdout, /already installed/);
 	assert.equal(env.read("prompts/improve-agents-md.md"), original);
-	assert.deepEqual(readdirSync(join(env.sandbox.agentDir, "prompts")), ["improve-agents-md.md"]);
+	assert.equal(env.read("prompts/show-me.md"), readFileSync(join(REPO_DIR, "setup/prompts/show-me.md"), "utf8"));
+	assert.deepEqual(readdirSync(join(env.sandbox.agentDir, "prompts")).sort(), ["improve-agents-md.md", "show-me.md"]);
 });
 
-test("existing global prompt is preserved unless forced, then backed up", () => {
+test("existing global prompts are preserved unless forced, then backed up", () => {
 	const env = setup();
 	const original = "My custom prompt\n";
-	env.sandbox.write("agent/prompts/improve-agents-md.md", original);
+	const names = ["improve-agents-md.md", "show-me.md"];
+	for (const name of names) env.sandbox.write(`agent/prompts/${name}`, original);
 	for (const args of [["--no-packages"], ["--no-packages", "--force", "--dry-run"]]) {
 		const result = env.run(args);
 		assert.equal(result.status, 0, result.stderr);
-		assert.equal(env.read("prompts/improve-agents-md.md"), original);
-		assert.deepEqual(readdirSync(join(env.sandbox.agentDir, "prompts")), ["improve-agents-md.md"]);
+		for (const name of names) assert.equal(env.read(`prompts/${name}`), original);
+		assert.deepEqual(readdirSync(join(env.sandbox.agentDir, "prompts")).sort(), names);
 	}
 	const result = env.run(["--no-packages", "--force"]);
 	assert.equal(result.status, 0, result.stderr);
-	assert.equal(env.read("prompts/improve-agents-md.md"), readFileSync(join(REPO_DIR, "setup/prompts/improve-agents-md.md"), "utf8"));
-	const backups = readdirSync(join(env.sandbox.agentDir, "prompts")).filter((name) => name.startsWith("improve-agents-md.md.bak-"));
-	assert.equal(backups.length, 1);
-	assert.equal(env.read(`prompts/${backups[0]}`), original);
+	for (const name of names) {
+		assert.equal(env.read(`prompts/${name}`), readFileSync(join(REPO_DIR, "setup/prompts", name), "utf8"));
+		const backups = readdirSync(join(env.sandbox.agentDir, "prompts")).filter((file) => file.startsWith(`${name}.bak-`));
+		assert.equal(backups.length, 1);
+		assert.equal(env.read(`prompts/${backups[0]}`), original);
+	}
 });
 
 test("--no-prompts skips global prompt installation", () => {

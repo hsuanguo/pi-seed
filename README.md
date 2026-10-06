@@ -1,7 +1,7 @@
 # pi-seed
 
 A small [pi](https://pi.dev) setup, shared as a starting point for your own: extensions, a skills directory,
-packages, a reusable prompt, default settings, and AGENTS.md.
+packages, reusable prompts, default settings, and AGENTS.md.
 
 ## Philosophy
 
@@ -41,6 +41,7 @@ Cloning over SSH (e.g. while the repo is private)? Pass the SSH source so the pa
 | Packages | `packages` in `setup/settings.json` | `pi install` for each one you don't have yet, plus this repo for its extensions and skills. |
 | AGENTS.md | `setup/AGENTS.md` | Copied directly to your agent directory without boundary markers, only if no supported context file exists (`AGENTS.override.md`, `AGENTS.md`, `AGENTS.MD`, `CLAUDE.md`, or `CLAUDE.MD`). Otherwise skipped with a reminder to maintain it yourself, even with `--force`. |
 | Prompt | [setup/prompts/improve-agents-md.md](setup/prompts/improve-agents-md.md) | Copied to `~/.pi/agent/prompts/improve-agents-md.md`. Existing content is kept; `--force` replaces it after backing it up. Identical content is skipped. |
+| Prompt | [setup/prompts/show-me.md](setup/prompts/show-me.md) | Copied to `~/.pi/agent/prompts/show-me.md`, with the same protection for existing content. Adds `/show-me` for focused visual explanations. |
 | Extensions | `extensions/` | Loaded from this package, see [Extensions](#extensions). |
 | Skills | `skills/` | Includes [background-tasks](skills/background-tasks/SKILL.md) for background execution, scheduled checks, reminders, and recurring tasks using pi-subagents. See [skills/README.md](skills/README.md). |
 
@@ -68,6 +69,20 @@ The prompt checks clarity, duplication, and project-specific constraints. It rep
 findings and proposes a minimal patch without editing until approved; `audit-only`
 reports findings without proposing a patch. It defaults to `AGENTS.md` in cwd.
 The prompt is installed by `install.mjs`, not by `pi install` alone.
+
+## Show Me
+
+The installer also adds `/show-me` globally. Run `/reload` after installation:
+
+```text
+/show-me
+/show-me installer control flow
+```
+
+With no arguments, it explains the current discussion point. It chooses a focused
+visual such as pseudocode, a call or file tree, Mermaid, or a diff. Dense concepts
+or visual comparisons can use an HTML artifact. Like `/improve-agents-md`, it is
+installed by `install.mjs`, not by `pi install` alone.
 
 ## Make it your own
 
@@ -154,7 +169,7 @@ touch your pi settings or sessions. Use `pi -e ./` to try this checkout for one 
 
 - Extensions and skills: `pi update git:github.com/hsuanguo/pi-seed` (or `pi update --extensions`).
 - Settings / new packages: `git pull && node install.mjs`.
-- Prompt: rerun the installer; existing content is kept. To take an updated template, use `--force` (also replaces differing settings; both are backed up).
+- Prompts: rerun the installer; existing content is kept. To take updated templates, use `--force` (also replaces differing settings; both are backed up).
 - User context: manually merge any wanted changes from `setup/AGENTS.md`. Existing files, including those installed by older versions, are left untouched.
 
 ## Notes
@@ -168,4 +183,4 @@ pi remove git:github.com/hsuanguo/pi-seed   # and any package you don't want: pi
 ```
 
 Remove the copied instructions from your user context file manually, keeping any custom content. Restore `settings.json.bak-<time>` if you want your old settings back.
-Remove `prompts/improve-agents-md.md` from your pi agent directory to uninstall the prompt.
+Remove `prompts/improve-agents-md.md` and `prompts/show-me.md` from your pi agent directory to uninstall the prompts.
