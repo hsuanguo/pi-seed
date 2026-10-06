@@ -47,7 +47,7 @@ function setup(template: object = TEMPLATE, agents = "## Shared rules\n- be clea
 	sandbox.write("repo/install.mjs", readFileSync(join(REPO_DIR, "install.mjs"), "utf8"));
 	sandbox.write("repo/setup/settings.json", JSON.stringify(template));
 	sandbox.write("repo/setup/AGENTS.md", agents);
-	for (const name of ["improve-agents-md.md", "show-me.md"]) {
+	for (const name of ["improve-agents-md.md", "show-me.md", "pr-sitter.md"]) {
 		sandbox.write(`repo/setup/prompts/${name}`, readFileSync(join(REPO_DIR, "setup/prompts", name), "utf8"));
 	}
 	const bin = sandbox.write("bin/pi", FAKE_PI);
@@ -154,18 +154,31 @@ test("global prompts install, load in pi, expand arguments, and remain idempoten
 	assert.equal(env.read("prompts/show-me.md"), readFileSync(join(REPO_DIR, "setup/prompts/show-me.md"), "utf8"));
 	assert.match(expandPromptTemplate("/show-me", loaded.templates), /Explain the current discussion point visually\./);
 	assert.match(expandPromptTemplate("/show-me installer control flow", loaded.templates), /Explain installer control flow visually\./);
+	const prSitter = loaded.templates.find((template) => template.name === "pr-sitter");
+	assert.ok(prSitter);
+	assert.equal(prSitter.argumentHint, "<review|maintain|watch> <PR URL or number> [interval] [deadline or maximum checks]");
+	const prSitterContent = readFileSync(join(REPO_DIR, "setup/prompts/pr-sitter.md"), "utf8");
+	assert.equal(env.read("prompts/pr-sitter.md"), prSitterContent);
+	assert.match(expandPromptTemplate("/pr-sitter", loaded.templates), /Mode: watch/);
+	for (const mode of ["review", "maintain", "watch"]) {
+		const expandedSitter = expandPromptTemplate(`/pr-sitter ${mode} https://github.com/example/repo/pull/42 10m 24h`, loaded.templates);
+		assert.ok(expandedSitter.includes(`Mode: ${mode}`));
+		assert.match(expandedSitter, /Pull request: https:\/\/github\.com\/example\/repo\/pull\/42/);
+		assert.match(expandedSitter, /Additional instructions: 10m 24h/);
+	}
 	const second = env.run(["--no-packages", "--force"]);
 	assert.equal(second.status, 0, second.stderr);
 	assert.match(second.stdout, /already installed/);
 	assert.equal(env.read("prompts/improve-agents-md.md"), original);
 	assert.equal(env.read("prompts/show-me.md"), readFileSync(join(REPO_DIR, "setup/prompts/show-me.md"), "utf8"));
-	assert.deepEqual(readdirSync(join(env.sandbox.agentDir, "prompts")).sort(), ["improve-agents-md.md", "show-me.md"]);
+	assert.equal(env.read("prompts/pr-sitter.md"), prSitterContent);
+	assert.deepEqual(readdirSync(join(env.sandbox.agentDir, "prompts")).sort(), ["improve-agents-md.md", "pr-sitter.md", "show-me.md"]);
 });
 
 test("existing global prompts are preserved unless forced, then backed up", () => {
 	const env = setup();
 	const original = "My custom prompt\n";
-	const names = ["improve-agents-md.md", "show-me.md"];
+	const names = ["improve-agents-md.md", "pr-sitter.md", "show-me.md"];
 	for (const name of names) env.sandbox.write(`agent/prompts/${name}`, original);
 	for (const args of [["--no-packages"], ["--no-packages", "--force", "--dry-run"]]) {
 		const result = env.run(args);

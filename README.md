@@ -42,6 +42,7 @@ Cloning over SSH (e.g. while the repo is private)? Pass the SSH source so the pa
 | AGENTS.md | `setup/AGENTS.md` | Copied directly to your agent directory without boundary markers, only if no supported context file exists (`AGENTS.override.md`, `AGENTS.md`, `AGENTS.MD`, `CLAUDE.md`, or `CLAUDE.MD`). Otherwise skipped with a reminder to maintain it yourself, even with `--force`. |
 | Prompt | [setup/prompts/improve-agents-md.md](setup/prompts/improve-agents-md.md) | Copied to `~/.pi/agent/prompts/improve-agents-md.md`. Existing content is kept; `--force` replaces it after backing it up. Identical content is skipped. |
 | Prompt | [setup/prompts/show-me.md](setup/prompts/show-me.md) | Copied to `~/.pi/agent/prompts/show-me.md`, with the same protection for existing content. Adds `/show-me` for focused visual explanations. |
+| Prompt | [setup/prompts/pr-sitter.md](setup/prompts/pr-sitter.md) | Copied to `~/.pi/agent/prompts/pr-sitter.md`, with the same protection for existing content. Adds scheduled PR review, author maintenance, and read-only monitoring. |
 | Extensions | `extensions/` | Loaded from this package, see [Extensions](#extensions). |
 | Skills | `skills/` | Includes [background-tasks](skills/background-tasks/SKILL.md) for background execution, scheduled checks, reminders, and recurring tasks using pi-subagents. See [skills/README.md](skills/README.md). |
 
@@ -83,6 +84,28 @@ With no arguments, it explains the current discussion point. It chooses a focuse
 visual such as pseudocode, a call or file tree, Mermaid, or a diff. Dense concepts
 or visual comparisons can use an HTML artifact. Like `/improve-agents-md`, it is
 installed by `install.mjs`, not by `pi install` alone.
+
+## PR Sitter
+
+The installer adds `/pr-sitter` globally. Run `/reload` after installation:
+
+```text
+/pr-sitter review https://github.com/owner/repo/pull/123 10m 24h
+/pr-sitter maintain https://github.com/owner/repo/pull/123 10m 24h
+/pr-sitter watch https://github.com/owner/repo/pull/123 10m 24h
+```
+
+`review` follows new revisions and rechecks earlier findings until the agreed
+review criteria are met. `maintain` handles review feedback as the PR author,
+including focused fixes, tests, normal pushes, and replies. `watch` only reports
+material changes. Merging, force-pushing, and changing protections need separate
+authorization; posting formal reviews also needs permission.
+
+All modes use bounded reminder schedules through the `background-tasks` skill.
+The same parent session performs the work and persists a PR ledger for recovery
+after compaction, rather than launching a fresh reviewer on each check. Future
+checks require the owning Pi process and session to stay alive. The installer
+copies this prompt; `pi install` alone does not.
 
 ## Make it your own
 
@@ -183,4 +206,4 @@ pi remove git:github.com/hsuanguo/pi-seed   # and any package you don't want: pi
 ```
 
 Remove the copied instructions from your user context file manually, keeping any custom content. Restore `settings.json.bak-<time>` if you want your old settings back.
-Remove `prompts/improve-agents-md.md` and `prompts/show-me.md` from your pi agent directory to uninstall the prompts.
+Remove `prompts/improve-agents-md.md`, `prompts/show-me.md`, and `prompts/pr-sitter.md` from your pi agent directory to uninstall the prompts.
