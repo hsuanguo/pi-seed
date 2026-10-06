@@ -6,6 +6,7 @@ import { spawnSync } from "node:child_process";
 import { chmodSync, existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
+import { loadSkillsFromDir } from "@earendil-works/pi-coding-agent";
 import { createSandbox, REPO_DIR, type Sandbox } from "./helpers.ts";
 
 const TEMPLATE = {
@@ -183,4 +184,16 @@ test("the shipped template is valid and holds only shareable defaults", () => {
 	}
 	for (const pkg of template.packages ?? []) assert.match(pkg, /^(npm:|git:)/, `${pkg}: public source`);
 	assert.match(readFileSync(join(REPO_DIR, "install.mjs"), "utf8"), /const SELF_SOURCE = "git:github\.com\/hsuanguo\/pi-seed";/);
+});
+
+test("the package ships the background-tasks skill referenced by the context template", () => {
+	const manifest = JSON.parse(readFileSync(join(REPO_DIR, "package.json"), "utf8"));
+	const loaded = manifest.pi.skills.map((dir: string) => loadSkillsFromDir({ dir: join(REPO_DIR, dir), source: "path" }));
+	const skills = loaded.flatMap((result: ReturnType<typeof loadSkillsFromDir>) => result.skills);
+	const diagnostics = loaded.flatMap((result: ReturnType<typeof loadSkillsFromDir>) => result.diagnostics);
+	assert.deepEqual(diagnostics, []);
+	const skill = skills.find((candidate: (typeof skills)[number]) => candidate.name === "background-tasks");
+	assert.ok(skill, "declared pi.skills must discover background-tasks");
+	assert.equal(skill.filePath, join(REPO_DIR, "skills/background-tasks/SKILL.md"));
+	assert.match(readFileSync(join(REPO_DIR, "setup/AGENTS.md"), "utf8"), /load the `background-tasks` skill before acting/);
 });

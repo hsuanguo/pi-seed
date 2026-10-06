@@ -26,8 +26,8 @@ node install.mjs
 
 Then start a new pi session (or `/reload` a running one).
 
-Only want the extensions? `pi install git:github.com/hsuanguo/pi-seed` — this repo is a
-pi package that ships `extensions/` and reserves `skills/` for future additions.
+Only want the extensions and skills? `pi install git:github.com/hsuanguo/pi-seed` — this repo is a
+pi package that ships `extensions/` and `skills/` without merging settings or user context.
 
 Cloning over SSH (e.g. while the repo is private)? Pass the SSH source so the package installs the same way:
 `node install.mjs --self git@github.com:hsuanguo/pi-seed.git` (pi itself needs the `git:` prefix:
@@ -41,7 +41,7 @@ Cloning over SSH (e.g. while the repo is private)? Pass the SSH source so the pa
 | Packages | `packages` in `setup/settings.json` | `pi install` for each one you don't have yet, plus this repo for its extensions and skills. |
 | AGENTS.md | `setup/AGENTS.md` | Copied directly to your agent directory without boundary markers, only if no supported context file exists (`AGENTS.override.md`, `AGENTS.md`, `AGENTS.MD`, `CLAUDE.md`, or `CLAUDE.MD`). Otherwise skipped with a reminder to maintain it yourself, even with `--force`. |
 | Extensions | `extensions/` | Loaded from this package, see [Extensions](#extensions). |
-| Skills | `skills/` | Reserved for skills distributed with this package; none are bundled yet. See [skills/README.md](skills/README.md). |
+| Skills | `skills/` | Includes [background-tasks](skills/background-tasks/SKILL.md) for background execution, scheduled checks, reminders, and recurring tasks using pi-subagents. See [skills/README.md](skills/README.md). |
 
 Rerunning is safe: anything already in place is skipped.
 
@@ -56,7 +56,7 @@ PI_CODING_AGENT_DIR=/tmp/pi-try node install.mjs --self ./
 
 Before installing, review `setup/settings.json` and `setup/AGENTS.md`. Adjust the package list,
 defaults, and instructions to fit your workflow, then preview the changes with `--dry-run`.
-Use `--no-packages` or `--no-agents` to skip those parts, or install only the extensions
+Use `--no-packages` or `--no-agents` to skip those parts, or install just the extensions and skills
 with the pi package command above. The [extension selection example](#extensions) lets you choose
 which extensions to load.
 

@@ -7,7 +7,7 @@ Share a minimal, stable pi setup others can adapt. **Less is More:** add somethi
 ## Layout & Style
 
 - `extensions/`: pi extensions, loaded through `pi.extensions` in `package.json`. `setup/`: installer templates. `tests/`: `node:test` suites.
-- `skills/` is reserved for package skills and currently contains only its README. Skills require `SKILL.md` frontmatter.
+- `skills/` holds package skills. Skills require `SKILL.md` frontmatter.
 - Tabs, double quotes, semicolons, and ES modules in JS/TS; two spaces in JSON; four spaces in Python. Use camelCase functions, PascalCase types, UPPER_SNAKE_CASE constants, and kebab-case extension filenames and skill directories.
 
 ## Installer Contract

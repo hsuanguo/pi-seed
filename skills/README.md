@@ -1,6 +1,10 @@
 # Skills
 
-This directory holds skills distributed with the pi-seed package. No skills are bundled yet.
+This directory holds skills distributed with the pi-seed package.
+
+| Skill | Use it for |
+|---|---|
+| [background-tasks](./background-tasks/SKILL.md) | Background execution, bounded scheduled checks, reminders, and recurring work with pi-subagents. |
 
 Add each skill in its own kebab-case directory with a `SKILL.md` file containing
 `name` and `description` frontmatter, followed by the instructions. Supporting scripts,
