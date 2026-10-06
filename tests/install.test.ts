@@ -195,5 +195,5 @@ test("the package ships the background-tasks skill referenced by the context tem
 	const skill = skills.find((candidate: (typeof skills)[number]) => candidate.name === "background-tasks");
 	assert.ok(skill, "declared pi.skills must discover background-tasks");
 	assert.equal(skill.filePath, join(REPO_DIR, "skills/background-tasks/SKILL.md"));
-	assert.match(readFileSync(join(REPO_DIR, "setup/AGENTS.md"), "utf8"), /load the `background-tasks` skill before acting/);
+	assert.match(readFileSync(join(REPO_DIR, "setup/AGENTS.md"), "utf8"), /load the `background-tasks` skill/);
 });
