@@ -5,7 +5,6 @@
     "npm:pi-web-access",
     "npm:pi-cache-optimizer",
     "npm:@juicesharp/rpiv-todo",
-    "npm:@juicesharp/rpiv-ask-user-question",
     "npm:pi-subagents",
     "npm:pi-lens"
   ]

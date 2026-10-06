@@ -7,3 +7,4 @@ auth.json
 sessions/
 *.bak-*
 .claude
+test-results/

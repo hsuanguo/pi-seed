@@ -157,10 +157,11 @@ in your own setup unless they serve a clear, common need.
 |---|---|---|
 | `claude-skills.ts` | Loads skills from `~/.claude/skills/` and project `.claude/skills/` (trusted projects only). `ancestors` (default) searches upward; `eager` also discovers nested project skill directories. Config: `claudeSkills` in `pi-seed-config.json`. | `/claude-skills` |
 | `scoped-context.ts` | Loads `AGENTS.md` / `CLAUDE.md` from subdirectories of the working directory: `lazy` (default) appends a file the first time a tool touches a path below it; `eager` adds all of them to the system prompt. Config: `scopedContext` in `pi-seed-config.json`. | `/scoped-context` |
+| `ask-user-question/` | Adds `ask_user_question`: 1–4 questions with single/multiple choices, custom answers, previews, notes, and editable review. Tabbed TUI in the terminal; native pi-web/RPC dialogs with Continue/Back after choices and editable review. No configuration. | Model tool |
 
 Details are in the comment at the top of each file.
 
-Both extensions use the same optional configuration file: `~/.pi/agent/pi-seed-config.json`
+The skill and context extensions use the same optional configuration file: `~/.pi/agent/pi-seed-config.json`
 (or `$PI_CODING_AGENT_DIR/pi-seed-config.json`), with project overrides in
 `<cwd>/.pi/pi-seed-config.json`. Project configuration is read only when the project is trusted;
 valid project values override user values field by field. Missing sections use defaults.
@@ -213,6 +214,110 @@ To load only some of them, use the object form of the package in `~/.pi/agent/se
   ]
 }
 ```
+
+### Structured questions
+
+The model calls `ask_user_question` when it needs a decision. Each question has a
+header (up to 16 characters) and 2–4 options with labels (up to 60 characters) and
+descriptions. The tool automatically adds a custom-answer control. Only **Submit
+answers** sends the answers and notes to the model. All questions must be answered;
+an explicitly empty multi-selection is valid. Cancelling or interrupting discards
+unsubmitted drafts instead of treating them as decisions.
+
+- **Terminal:** Tab / Shift+Tab or ← / → switches question and Review tabs.
+  ↑ / ↓ moves between options. Enter selects; Space toggles multiple choices.
+  The custom-answer row opens a multiline editor: Enter saves, Shift+Enter adds a
+  line, Ctrl+U clears, and Esc returns without changing the committed answer.
+  Text drafts survive tab switches. `n` edits a question note, or a global note on
+  Review. PgUp / PgDn scrolls question details and Markdown previews; wide screens
+  show them beside the options. Ctrl+] hides/shows the overlay to read the transcript.
+  Esc outside the editor cancels the entire questionnaire.
+- **Unmodified pi-web / RPC:** Keeps the host's ordinary mouse-friendly
+  `select()` / `editor()` dialogs, even when it offers `custom()`. No host fork,
+  private API, extra server, port, or frontend patch is required.
+  Questions appear at the top, then the answer choices and secondary actions.
+  Available navigation comes at the end: **Continue**, then **Back**.
+  The first question has no Back. A fresh single-select question has no
+  Continue until it has an answer.
+  Back returns to the previous question without clearing any answers. Review
+  also offers Back to return to the last question.
+  These controls are normal option-list buttons, not additions to the host's
+  fixed Cancel footer. The host controls their styling and one-column layout.
+  Multi-select uses clickable `[ ]` / `[x]` rows. Single choices advance
+  automatically; multi-selection stays until Continue.
+  **More actions** contains full question/option details, previews, question notes,
+  and a shortcut to review. Custom answers use an editor with the previous text
+  prefilled. Review has a short title and compact answer summaries in the Edit
+  rows (multiple choices show the first choice plus a count); it does not repeat
+  every full question. Global notes remain editable there. To inspect a full
+  answer or note, open its Edit row, then Details & previews or the text editor.
+  Only display text is shortened; submitted data stays complete. The host owns
+  the Cancel button: dismissing a main question/review cancels the questionnaire;
+  dismissing an editor, More actions, or details returns to the parent question.
+  Button styles and layout still come from the host; this is not a custom Web form.
+- **Print / JSON:** The tool reports that no UI is available and tells the model
+  to ask in plain chat. It does not claim the user declined.
+- The tool is model-only and sequential: codemode cannot invoke it, and sibling
+  tool calls cannot open overlapping questionnaires. Submitted data is stored in
+  the tool result, so it follows the active session branch.
+
+This is an independent implementation inspired by
+[`@juicesharp/rpiv-ask-user-question`](https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-ask-user-question)
+(MIT). It keeps the question parameter shape and core questionnaire workflow, not
+the upstream localization, notification events, external editor integration, or
+configuration system.
+
+**Existing installations:** Disable or remove the old package before loading this
+extension. Both tools use the name `ask_user_question`; they must not load together.
+
+```bash
+pi remove npm:@juicesharp/rpiv-ask-user-question
+```
+
+Also check project-scoped package declarations, pinned versions, and explicit
+extension paths. Remove or disable the old extension there too. Then update this
+pi-seed package and start a new session or run `/reload`. The installer no longer
+adds the old package, but it never removes existing packages or edits your user
+instructions automatically. Merge any wanted guidance manually.
+
+#### Trying the personal extension
+
+Update **one** active extension copy, then run `/reload`; keep using the normal
+`pi-web` command. If you use a personal copy, back it up outside the autoloaded
+`extensions/` directory before copying these four files:
+
+```bash
+agentDir="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
+backup="$agentDir/backups/questionnaire-$(date +%Y%m%d-%H%M%S)"
+mkdir -p "$backup"
+cp -a "$agentDir/extensions/ask-user-question" "$backup/"
+cp extensions/ask-user-question/*.ts "$agentDir/extensions/ask-user-question/"
+```
+
+Do not load a packaged copy alongside this personal copy: both register the
+same tool name. The extension works with the normal, unmodified pi-web host.
+
+#### Optional browser verification
+
+The credential-free suite tests state and real pi sessions with `npm run check`.
+The optional browser suite uses an **unmodified installed npm pi-web build** on a
+free loopback port, with temporary HOME and agent directories and no inherited
+model credentials. It does not build or edit the host, access your real sessions,
+or call a paid model.
+
+```bash
+npx playwright install chromium
+PI_WEB_PACKAGE_ROOT=/path/to/node_modules/@agegr/pi-web npm run test:questionnaire-web
+```
+
+You can set `E2E_CHROMIUM_EXECUTABLE` to an existing Chromium executable instead.
+The test covers 1280px and 390px native dialogs, Continue/Back order, returning
+and changing answers, multi-selection, both note scopes, custom text, active-request
+refresh, review, Submit, and Cancel. Results go to the ignored
+`test-results/questionnaire-web/` directory.
+These viewport checks do not claim real Safari/iOS coverage. See
+[`assets/questionnaire-back.png`](assets/questionnaire-back.png) for an actual
+unmodified-host screenshot.
 
 ## Contributing
 
