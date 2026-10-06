@@ -53,9 +53,11 @@ Cloning over SSH (e.g. while the repo is private)? Pass the SSH source so the pa
 | Prompt | [setup/prompts/improve-agents-md.md](setup/prompts/improve-agents-md.md) | Copied to `~/.pi/agent/prompts/improve-agents-md.md`. Existing content is kept; `--force` replaces it after backing it up. Identical content is skipped. |
 | Prompt | [setup/prompts/show-me.md](setup/prompts/show-me.md) | Copied to `~/.pi/agent/prompts/show-me.md`, with the same protection for existing content. Adds `/show-me` for focused visual explanations. |
 | Extensions | `extensions/` | Loaded from this package, see [Extensions](#extensions). |
-| Skills | `skills/` | Includes [background-tasks](skills/background-tasks/SKILL.md) for scheduling, [pr-sitting](skills/pr-sitting/SKILL.md) for PR work, and [pi-skill-creator](skills/pi-skill-creator/SKILL.md) for creating and evaluating skills. See [skills/README.md](skills/README.md). |
+| Skills | `skills/` | Includes [background-tasks](skills/background-tasks/SKILL.md) for background waits and scheduling, [pr-sitting](skills/pr-sitting/SKILL.md) for PR work, and [pi-skill-creator](skills/pi-skill-creator/SKILL.md) for creating and evaluating skills. See [skills/README.md](skills/README.md). |
 
 Rerunning is safe: anything already in place is skipped.
+
+The user context template directs the agent to load `background-tasks` for prolonged waits or ongoing polling, even if discovered midway through a task. Waits over roughly 30 minutes call for particular consideration of background execution or scheduled checks; shorter waits can also benefit. Duration, uncertainty, keeping the parent available, and setup cost guide the choice, while explicit foreground or background requests take precedence. Existing users must manually merge the wanted rules from `setup/AGENTS.md`; the installer preserves existing context files.
 
 Options: `--dry-run`, `--force`, `--no-packages`, `--no-agents`, `--no-prompts`, `--no-self`, `--self <source>`.
 `PI_CODING_AGENT_DIR` targets another agent directory, e.g. for a trial run:

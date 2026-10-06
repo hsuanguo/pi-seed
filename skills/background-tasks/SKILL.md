@@ -1,6 +1,6 @@
 ---
 name: background-tasks
-description: "Schedule follow-ups, reminders, and recurring tasks, and manage authorized background work with pi-subagents. Use for daily or weekly briefings, delayed status checks, or long-running tasks that must be awaited. Distinguish reminder-only from delegated execution, bound checks, and verify real results. Not for immediate one-off status queries or short commands."
+description: "Manage authorized background work, delayed checks, reminders, and recurring tasks with pi-subagents. Use to choose how to handle prolonged waits or ongoing polling, including waits discovered midway through an ordinary task, or when background execution is requested. Shorter waits can also benefit when the parent should stay available. Also use for daily or weekly briefings. Not for immediate one-off status queries or routine short commands."
 ---
 
 # Background Tasks
@@ -16,7 +16,9 @@ Use pi-subagents to return control while authorized work runs or to check extern
 
 ## 2. Choose Execution and Mode
 
-- Prefer background execution for bounded work that can safely wait for its real result, roughly under an hour. Prefer scheduled checks for long or unknown external waits. This is a policy guideline, not a runtime limit.
+- Choose foreground `sleep` or bounded polling, background execution, or scheduled checks based on the expected remaining wait, uncertainty, the value of keeping the parent available, and setup cost. For waits over roughly 30 minutes, give background execution or scheduled checks particular consideration. Shorter waits can also benefit from background work; 30 minutes is a reminder to reassess, not a cutoff or runtime limit. Respect explicit foreground or background requests.
+- Estimate the whole remaining wait from job progress, throughput, or other available evidence, not from each polling interval or the bash timeout. Reassess when a status check changes the estimate or the wait exceeds it, including midway through an ordinary task. If choosing background work, arrange bounded execution or scheduled checks and return control in an interactive parent; a larger bash timeout does not make a foreground loop background work.
+- Use a background child for bounded execution that can await the real result. Prefer scheduled checks for prolonged or unknown external waits.
 - Choose explicitly between reminder-only and delegated execution. If it is unclear whether the parent should act later or a child should do the work at the due time, ask before creating the schedule.
 - Reminder-only: return an actionable reminder and all inputs without launching a child. The parent performs the actual work after notification. The script itself spends no child-model tokens; parent turns still consume tokens.
 - Delegated: await `runs.run(...)` or `runs.all(...)` children with the required tools, then return their final results for the parent to evaluate. Omit explicit child `async: true`: with it, even an awaited call can return only a launch receipt. Dispatch is not completion.
