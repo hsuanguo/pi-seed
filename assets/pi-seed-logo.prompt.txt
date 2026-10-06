@@ -1,0 +1,10 @@
+Generated with the built-in image_gen tool. Transparent background requested.
+
+Use case: logo-brand.
+Asset type: a finished pixel-art logo for an open-source coding-agent starter-kit project named "pi-seed".
+Create one distinctive, minimal logo lockup on a genuinely transparent background. A chunky pixel-art sprouting seed icon centered above a small matching pixel-font wordmark. The icon combines a warm ochre split seed, two clean green leaves, and a stem whose geometry subtly evokes the Greek lowercase pi symbol π. Seed and sprout must be immediately recognizable; the pi reference should feel natural, not like a separate mathematical label.
+Style: authentic low-resolution game-sprite craftsmanship enlarged with sharp nearest-neighbor edges, a consistent square pixel grid, deliberate staircase contours, flat colors, very restrained pixel shading, a strong compact silhouette. Friendly, quiet, practical, suitable for a minimal developer tool. Keep details sparse enough to work as a small repository avatar.
+Palette: a few harmonious plant greens, warm seed gold, deep ink outlines, and light cream accent pixels. The wordmark has light cream interiors with a dark pixel outline so it reads on both light and dark backgrounds.
+Composition: balanced centered icon and centered wordmark underneath, comfortable gap, generous transparent outer padding. Icon is the dominant element. Single logo only.
+Text verbatim: "pi-seed", all lowercase, exactly p i hyphen s e e d. Readable custom blocky bitmap lettering, tidy spacing.
+Constraints: transparent alpha background, no background panel, no mockup, no labels, no watermark, no extra text, no gradients, no glow, no blur, no smooth curves, no 3D effects, no ground shadow, no face or eyes.
