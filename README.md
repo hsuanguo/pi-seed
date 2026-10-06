@@ -43,7 +43,7 @@ Cloning over SSH (e.g. while the repo is private)? Pass the SSH source so the pa
 | Prompt | [setup/prompts/improve-agents-md.md](setup/prompts/improve-agents-md.md) | Copied to `~/.pi/agent/prompts/improve-agents-md.md`. Existing content is kept; `--force` replaces it after backing it up. Identical content is skipped. |
 | Prompt | [setup/prompts/show-me.md](setup/prompts/show-me.md) | Copied to `~/.pi/agent/prompts/show-me.md`, with the same protection for existing content. Adds `/show-me` for focused visual explanations. |
 | Extensions | `extensions/` | Loaded from this package, see [Extensions](#extensions). |
-| Skills | `skills/` | Includes [background-tasks](skills/background-tasks/SKILL.md) for scheduling and [pr-sitting](skills/pr-sitting/SKILL.md) for continuous PR review, author maintenance, and monitoring. See [skills/README.md](skills/README.md). |
+| Skills | `skills/` | Includes [background-tasks](skills/background-tasks/SKILL.md) for scheduling, [pr-sitting](skills/pr-sitting/SKILL.md) for PR work, and [pi-skill-creator](skills/pi-skill-creator/SKILL.md) for creating and evaluating skills. See [skills/README.md](skills/README.md). |
 
 Rerunning is safe: anything already in place is skipped.
 
@@ -110,6 +110,23 @@ It is distributed through `pi.skills`, so `pi install` includes it without a
 separate prompt copy. If you installed the former `/pr-sitter` prompt, remove
 `prompts/pr-sitter.md` from your agent directory yourself; updates do not delete
 existing user files.
+
+## Skill Creation and Evaluation
+
+Use `/skill:pi-skill-creator` or ask Pi to create, evaluate, or improve a skill.
+The skill adapts [S1M0N38/pi-skill-creator](https://github.com/S1M0N38/pi-skill-creator)
+to the `pi-subagents` package already installed by setup. It compares a skill
+against a baseline using fresh child sessions, a frozen private skill snapshot,
+and independent copies of input fixtures. It separates forced-use effectiveness
+tests from natural description-trigger tests.
+
+The bundled Node.js helpers prepare pairs and produce JSON and Markdown benchmarks;
+they do not launch paid model calls themselves. Evaluations use the operator's
+chosen model through pi-subagents. Missing telemetry stays unknown, and incomplete
+or invalid pairs are excluded with reasons. Child agents still have ordinary file
+access, so this isolates conversation and working state without providing an OS
+sandbox. See the skill's [evaluation guide](skills/pi-skill-creator/references/evaluation.md)
+and [source/version notes](skills/pi-skill-creator/references/sources.md).
 
 ## Make it your own
 

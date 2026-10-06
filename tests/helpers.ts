@@ -97,6 +97,9 @@ export interface TestSession {
 
 export interface TestSessionOptions {
 	cwd?: string;
+	/** Explicit resource isolation for child-session and skill-loading probes. */
+	resources?: Pick<ConstructorParameters<typeof DefaultResourceLoader>[0],
+		"noSkills" | "additionalSkillPaths" | "skillsOverride" | "noContextFiles" | "appendSystemPrompt">;
 	/** Extension files to load. Discovery of other extensions is off. */
 	extensions?: string[];
 	extensionFactories?: ExtensionFactory[];
@@ -122,6 +125,7 @@ export async function createTestSession(sandbox: Sandbox, options: TestSessionOp
 		noExtensions: true,
 		additionalExtensionPaths: options.extensions ?? [],
 		extensionFactories: options.extensionFactories ?? [],
+		...options.resources,
 	});
 	await resourceLoader.reload();
 	const { session } = await createAgentSession({
