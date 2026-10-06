@@ -90,6 +90,15 @@ valid project values override user values field by field. Missing sections use d
 }
 ```
 
+| Field | Values | Default | Effect |
+|---|---|---|---|
+| `claudeSkills.mode` | `"ancestors"`, `"eager"` | `"ancestors"` | `ancestors` searches cwd and its ancestors up to the Git root. `eager` also searches nested directories below the Git root (or cwd outside Git). This controls skill discovery, not insertion of full skill instructions into the prompt. |
+| `claudeSkills.ignoreUserSkills` | `true`, `false` | `false` | `true` skips user skills in `~/.claude/skills/`; `false` includes them. |
+| `claudeSkills.ignoreProjectSkills` | `true`, `false` | `false` | `true` skips project `.claude/skills/` directories; `false` includes them when the project is trusted. |
+| `scopedContext.mode` | `"lazy"`, `"eager"` | `"lazy"` | `lazy` appends relevant subdirectory instructions to tool results when a path in that scope is touched. `eager` adds all discovered subdirectory instructions to the system prompt. |
+
+The ignore flags apply only to Claude skill directories, not pi's native or packaged skills.
+
 Set `claudeSkills.mode` to `"eager"` to discover directories such as
 `<repo-root>/A/.claude/skills/`, even when starting pi in another repository subdirectory.
 Outside Git, the downward scan starts at cwd. Hidden directories (except the `.claude/skills`
