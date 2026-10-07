@@ -172,7 +172,7 @@ test("real session: sibling questionnaire calls never open overlapping dialogs",
 
 test("real reload: changed questionnaire helpers are loaded again without restarting", async () => {
 	const sandbox = createSandbox();
-	const files = ["index.ts", "state.ts", "dialogs.ts", "tui.ts"];
+	const files = ["index.ts", "state.ts", "dialogs.ts", "tui.ts", "config.ts", "response-timeout.ts"];
 	for (const file of files) {
 		let source = readFileSync(join(REPO_DIR, "extensions/ask-user-question", file), "utf8");
 		if (file === "dialogs.ts") source = source.replace('label: "Continue"', 'label: "Continue before reload"');

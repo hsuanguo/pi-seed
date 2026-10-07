@@ -157,11 +157,11 @@ in your own setup unless they serve a clear, common need.
 |---|---|---|
 | `claude-skills.ts` | Loads skills from `~/.claude/skills/` and project `.claude/skills/` (trusted projects only). `ancestors` (default) searches upward; `eager` also discovers nested project skill directories. Config: `claudeSkills` in `pi-seed-config.json`. | `/claude-skills` |
 | `scoped-context.ts` | Loads `AGENTS.md` / `CLAUDE.md` from subdirectories of the working directory: `lazy` (default) appends a file the first time a tool touches a path below it; `eager` adds all of them to the system prompt. Config: `scopedContext` in `pi-seed-config.json`. | `/scoped-context` |
-| `ask-user-question/` | Adds `ask_user_question`: 1–4 questions with single/multiple choices, custom answers, previews, notes, and editable review. Tabbed TUI in the terminal; native pi-web/RPC dialogs with Continue/Back after choices and editable review. No configuration. | Model tool |
+| `ask-user-question/` | Adds `ask_user_question`: 1–4 questions with single/multiple choices, custom answers, previews, notes, and editable review. Tabbed TUI in the terminal; native pi-web/RPC dialogs with Continue/Back after choices and editable review. Optional no-response timeout for unattended runs: `askUserQuestion.timeoutSeconds`. | Model tool |
 
 Details are in the comment at the top of each file.
 
-The skill and context extensions use the same optional configuration file: `~/.pi/agent/pi-seed-config.json`
+All extensions use the same optional configuration file: `~/.pi/agent/pi-seed-config.json`
 (or `$PI_CODING_AGENT_DIR/pi-seed-config.json`), with project overrides in
 `<cwd>/.pi/pi-seed-config.json`. Project configuration is read only when the project is trusted;
 valid project values override user values field by field. Missing sections use defaults.
@@ -175,6 +175,9 @@ valid project values override user values field by field. Missing sections use d
   },
   "scopedContext": {
     "mode": "lazy"
+  },
+  "askUserQuestion": {
+    "timeoutSeconds": 0
   }
 }
 ```
@@ -185,6 +188,7 @@ valid project values override user values field by field. Missing sections use d
 | `claudeSkills.ignoreUserSkills` | `true`, `false` | `false` | `true` skips user skills in `~/.claude/skills/`; `false` includes them. |
 | `claudeSkills.ignoreProjectSkills` | `true`, `false` | `false` | `true` skips project `.claude/skills/` directories; `false` includes them when the project is trusted. |
 | `scopedContext.mode` | `"lazy"`, `"eager"` | `"lazy"` | `lazy` appends relevant subdirectory instructions to tool results when a path in that scope is touched. `eager` adds all discovered subdirectory instructions to the system prompt. |
+| `askUserQuestion.timeoutSeconds` | Integer `0`–`86400` | `0` | `0` waits indefinitely. A positive value is how long a questionnaire waits for a first response; any response turns the timer off. |
 
 The ignore flags apply only to Claude skill directories, not pi's native or packaged skills.
 
@@ -261,6 +265,48 @@ unsubmitted drafts instead of treating them as decisions.
   tool calls cannot open overlapping questionnaires. Submitted data is stored in
   the tool result, so it follows the active session branch.
 
+#### Optional no-response timeout
+
+Set `askUserQuestion.timeoutSeconds` in the shared `pi-seed-config.json`, for example:
+
+```json
+{
+  "askUserQuestion": {
+    "timeoutSeconds": 120
+  }
+}
+```
+
+The default is `0` (disabled). User configuration applies everywhere; a trusted
+project can override it, including setting `0`. Invalid values warn and do not
+replace an earlier valid value. The tool reads this configuration for each call;
+it does not change your settings, context files, or configuration on disk.
+
+It is meant for **unattended runs**, not to hurry a present user:
+
+- The countdown starts when the questionnaire opens. The host shows its ordinary
+  expiry countdown on the first dialog; the TUI shows it in its status line.
+- The **first user response** turns the timer off for the rest of that
+  questionnaire: any native dialog choice (an answer, Back, Continue, a menu, or
+  opening an editor) or any key in the TUI. From then on the questionnaire waits
+  indefinitely, as when the timeout is disabled.
+- There is no UI switch to disable it; answering is enough.
+- The native extension API cannot report mouse movement, hovering, or scrolling.
+  Those do not count as a response. Stop/reload still use normal host cancellation.
+
+Expiry closes the waiting selector/TUI and returns `status: "timed_out"` with no
+submitted answers or notes. Manual Cancel stays `cancelled`; Stop stays `aborted`.
+The compatibility `cancelled` flag means "not submitted"; use `status` for the reason.
+Timer cleanup prevents old expiry callbacks or late responses from affecting a
+later questionnaire.
+
+The Agent receives a normal tool result: it may state reasonable assumptions and
+continue **already-authorized, low-risk work**. No extra model call is launched by
+the extension. Timeout is not consent, not a user selection, and not permission
+to perform approval-gated actions. If approval or essential data is still needed,
+the result tells the Agent to leave that action blocked rather than infer consent.
+Unsubmitted drafts are never promoted to answers by timeout.
+
 This is an independent implementation inspired by
 [`@juicesharp/rpiv-ask-user-question`](https://github.com/juicesharp/rpiv-mono/tree/main/packages/rpiv-ask-user-question)
 (MIT). It keeps the question parameter shape and core questionnaire workflow, not
@@ -284,7 +330,8 @@ instructions automatically. Merge any wanted guidance manually.
 
 Update **one** active extension copy, then run `/reload`; keep using the normal
 `pi-web` command. If you use a personal copy, back it up outside the autoloaded
-`extensions/` directory before copying these four files:
+`extensions/` directory before copying the complete extension files (including
+`config.ts` and `response-timeout.ts`):
 
 ```bash
 agentDir="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}"
@@ -313,7 +360,8 @@ PI_WEB_PACKAGE_ROOT=/path/to/node_modules/@agegr/pi-web npm run test:questionnai
 You can set `E2E_CHROMIUM_EXECUTABLE` to an existing Chromium executable instead.
 The test covers 1280px and 390px native dialogs, Continue/Back order, returning
 and changing answers, multi-selection, both note scopes, custom text, active-request
-refresh, review, Submit, and Cancel. Results go to the ignored
+refresh, review, Submit, Cancel, unattended expiry, and a response stopping the
+timer. Results go to the ignored
 `test-results/questionnaire-web/` directory.
 These viewport checks do not claim real Safari/iOS coverage. See
 [`assets/questionnaire-back.png`](assets/questionnaire-back.png) for an actual

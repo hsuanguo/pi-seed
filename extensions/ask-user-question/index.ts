@@ -1,5 +1,9 @@
 /**
- * Structured questions for pi-seed. No configuration or project files are read.
+ * Structured questions for pi-seed. Optional askUserQuestion.timeoutSeconds in
+ * pi-seed-config.json: default 0; trusted projects may override user configuration.
+ * For unattended runs: the clock starts when the questionnaire opens; the first user
+ * response (selection, navigation, editor, key) turns it off for that questionnaire.
+ * Timeout returns timed_out without draft answers or implied approval.
  *
  * TUI: question tabs, single/multi-selection, multiline custom answers, Markdown
  * previews, per-question/global notes, review, and Ctrl+] overlay hide/show.
@@ -17,15 +21,18 @@
 import { defineTool, type ExtensionAPI, type ExtensionToolContext } from "@earendil-works/pi-coding-agent";
 import { Key, Text, matchesKey, type OverlayHandle } from "@earendil-works/pi-tui";
 import { runDialogs } from "./dialogs.ts";
+import { loadQuestionnaireConfig } from "./config.ts";
+import { ResponseTimeout } from "./response-timeout.ts";
 import { QuestionParams, QuestionnaireState, normalizeQuestions, toolResponse, type QuestionnaireResult } from "./state.ts";
 
-async function ask(state: QuestionnaireState, ctx: ExtensionToolContext, signal?: AbortSignal): Promise<QuestionnaireResult> {
+async function ask(state: QuestionnaireState, ctx: ExtensionToolContext, signal?: AbortSignal, timeout?: ResponseTimeout): Promise<QuestionnaireResult> {
 	if (signal?.aborted) return state.result("aborted");
 	if (!ctx.hasUI) return state.result("unavailable", "No dialog UI in this mode.");
 	try {
 		if (ctx.mode === "tui") {
 			let handle: OverlayHandle | undefined;
 			const unsubscribe = ctx.ui.onTerminalInput((data) => {
+				timeout?.markResponded();
 				if (!handle || !matchesKey(data, Key.ctrl("]"))) return;
 				handle.setHidden(!handle.isHidden());
 				ctx.ui.setStatus("ask-user-question", handle.isHidden() ? "Questions hidden — Ctrl+] to resume" : undefined);
@@ -34,10 +41,11 @@ async function ask(state: QuestionnaireState, ctx: ExtensionToolContext, signal?
 			try {
 				const result = await ctx.ui.custom<QuestionnaireResult>(async (tui, theme, keys, done) => {
 					const { QuestionnaireComponent } = await import("./tui.ts");
-					return new QuestionnaireComponent(tui, theme, keys, state, done, signal);
+					return new QuestionnaireComponent(tui, theme, keys, state, done, signal, timeout);
 				}, {
 					overlay: true,
-					overlayOptions: { width: "95%", anchor: "center", margin: 1 },
+					// Full width: side margins would show transcript text next to the frame.
+					overlayOptions: { width: "100%", anchor: "center" },
 					onHandle: (value) => { handle = value; },
 				});
 				if (signal?.aborted) return state.result("aborted");
@@ -51,7 +59,7 @@ async function ask(state: QuestionnaireState, ctx: ExtensionToolContext, signal?
 		if (typeof ctx.ui.select !== "function" || typeof ctx.ui.editor !== "function") {
 			return state.result("unavailable", "Host does not support select/editor dialogs.");
 		}
-		return await runDialogs(ctx.ui, state, signal);
+		return await runDialogs(ctx.ui, state, signal, timeout);
 	} catch (error) {
 		const aborted = signal?.aborted || (error instanceof Error && error.name === "AbortError");
 		return aborted ? state.result("aborted") : state.result("unavailable", `UI failed: ${error instanceof Error ? error.message : String(error)}`);
@@ -69,6 +77,7 @@ export const questionTool = defineTool<typeof QuestionParams, QuestionnaireResul
 		"Use multiSelect when several options can apply. Use optional preview for code, diagrams, or layouts worth comparing.",
 		"Keep question text concise. Do not include UI navigation or test instructions in the question; the UI supplies its own controls.",
 		"Do not author Other, Type something., or Next options; the UI adds its own controls. Respect cancellation and distinguish UI failures from user refusal.",
+		"If ask_user_question reports timed_out, do not invent user choices or treat silence as authorization. State reasonable assumptions and continue only already-authorized, low-risk work; keep approval-gated or essential-information-dependent actions blocked.",
 	],
 	parameters: QuestionParams,
 	exposure: "model-only",
@@ -76,7 +85,19 @@ export const questionTool = defineTool<typeof QuestionParams, QuestionnaireResul
 
 	async execute(_toolCallId, params, signal, _onUpdate, ctx) {
 		const state = new QuestionnaireState(normalizeQuestions(params));
-		return toolResponse(await ask(state, ctx, signal));
+		if (!ctx.hasUI || signal?.aborted) return toolResponse(await ask(state, ctx, signal));
+		const { config, warnings } = loadQuestionnaireConfig(ctx.cwd, ctx.isProjectTrusted());
+		for (const warning of warnings) ctx.ui.notify(warning, "warning");
+		const timeout = new ResponseTimeout(config.timeoutSeconds * 1000);
+		const waitingSignal = timeout.enabled ? AbortSignal.any([...(signal ? [signal] : []), timeout.signal]) : signal;
+		timeout.start();
+		try {
+			const result = await ask(state, ctx, waitingSignal, timeout);
+			if (signal?.aborted) return toolResponse(state.result("aborted"));
+			return toolResponse(timeout.expired ? state.result("timed_out") : result);
+		} finally {
+			timeout.dispose();
+		}
 	},
 
 	renderCall(params, theme) {
@@ -88,7 +109,7 @@ export const questionTool = defineTool<typeof QuestionParams, QuestionnaireResul
 	renderResult(result, options, theme) {
 		const details = result.details;
 		if (!details) return new Text(options.isPartial ? "Waiting for answers…" : "No questionnaire result", 0, 0);
-		if (details.status !== "submitted") return new Text(theme.fg("warning", `Questionnaire ${details.status}${details.error ? `: ${details.error}` : ""}`), 0, 0);
+		if (details.status !== "submitted") return new Text(theme.fg("warning", `Questionnaire ${details.status.replaceAll("_", " ")}${details.error ? `: ${details.error}` : ""}`), 0, 0);
 		const text = details.answers.map((a) => `${a.questionIndex + 1}. ${a.question}\n   ${a.kind === "multi" ? a.selected?.join(", ") || "(none selected)" : a.answer}`
 			+ (a.notes ? `\n   Note: ${a.notes}` : "")
 			+ (options.expanded && a.preview ? `\n${a.preview}` : "")).join("\n");

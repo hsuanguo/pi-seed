@@ -5,6 +5,7 @@ import {
 	type SelectItem, type TUI,
 } from "@earendil-works/pi-tui";
 import { QuestionnaireState, type QuestionnaireResult } from "./state.ts";
+import type { ResponseTimeout } from "./response-timeout.ts";
 
 /** Keyboard-first questionnaire. It uses pi's editor, selector, and width-aware Markdown renderer. */
 export class QuestionnaireComponent implements Component, Focusable {
@@ -31,17 +32,18 @@ export class QuestionnaireComponent implements Component, Focusable {
 	readonly state: QuestionnaireState;
 	private done: (result: QuestionnaireResult) => void;
 	private signal?: AbortSignal;
-	private transcriptShortcut: boolean;
+	private timeout?: ResponseTimeout;
+	private clock?: ReturnType<typeof setInterval>;
 
 	constructor(tui: TUI, theme: Theme, keys: KeybindingsManager, state: QuestionnaireState,
-		done: (result: QuestionnaireResult) => void, signal?: AbortSignal, transcriptShortcut = true) {
+		done: (result: QuestionnaireResult) => void, signal?: AbortSignal, timeout?: ResponseTimeout) {
 		this.tui = tui;
 		this.theme = theme;
 		this.keys = keys;
 		this.state = state;
 		this.done = done;
 		this.signal = signal;
-		this.transcriptShortcut = transcriptShortcut;
+		this.timeout = timeout;
 		this.customDrafts = state.drafts.map((draft) => draft.custom);
 		this.noteDrafts = [...state.drafts.map((draft) => draft.notes), state.globalNote];
 		this.selectionByTab = Array(state.drafts.length + 1).fill(0);
@@ -68,23 +70,29 @@ export class QuestionnaireComponent implements Component, Focusable {
 		this.rebuildList();
 		this.signal?.addEventListener("abort", this.onAbort, { once: true });
 		if (this.signal?.aborted) this.onAbort();
+		if (!this.closed && this.timeout?.enabled) {
+			this.clock = setInterval(() => this.refresh(), 1000);
+			this.clock.unref?.();
+		}
 	}
 
 	get focused(): boolean { return this.hasFocus; }
 	set focused(value: boolean) { this.hasFocus = value; this.editor.focused = value && !!this.editing; }
 	private get reviewing(): boolean { return this.tab === this.state.drafts.length; }
-	private onAbort = () => this.finish("aborted");
+	private onAbort = () => this.finish(this.timeout?.expired ? "timed_out" : "aborted");
 
 	private finish(status: QuestionnaireResult["status"]): void {
 		if (this.closed) return;
 		this.closed = true;
 		this.signal?.removeEventListener("abort", this.onAbort);
+		if (this.clock !== undefined) clearInterval(this.clock);
 		this.done(this.state.result(status));
 	}
 
 	dispose(): void {
 		this.closed = true;
 		this.signal?.removeEventListener("abort", this.onAbort);
+		if (this.clock !== undefined) clearInterval(this.clock);
 	}
 
 	invalidate(): void {
@@ -187,6 +195,8 @@ export class QuestionnaireComponent implements Component, Focusable {
 
 	handleInput(data: string): void {
 		if (this.closed) return;
+		// Any input proves someone is present: stop the unattended-run timeout.
+		if (this.timeout?.enabled) { this.timeout.markResponded(); if (this.clock !== undefined) clearInterval(this.clock); }
 		if (matchesKey(data, Key.ctrl("c"))) { this.finish("cancelled"); return; }
 		if (matchesKey(data, Key.tab)) { this.switchTab(this.tab + 1); return; }
 		if (matchesKey(data, Key.shift("tab"))) { this.switchTab(this.tab - 1); return; }
@@ -231,8 +241,25 @@ export class QuestionnaireComponent implements Component, Focusable {
 		return lines.slice(this.detailOffset, this.detailOffset + height);
 	}
 
+	/** A full frame with an opaque inner area, so the overlay never blends into the transcript behind it. */
 	render(width: number): string[] {
 		width = Math.max(1, width);
+		if (width < 8) return this.renderContent(width);
+		const inner = width - 4;
+		const border = (text: string) => this.theme.fg("borderAccent", text);
+		const lines = this.renderContent(inner);
+		const title = truncateToWidth(" Questions ", width - 4);
+		const top = border("╭─") + this.theme.fg("accent", title) + border(`${"─".repeat(Math.max(0, width - 3 - visibleWidth(title)))}╮`);
+		const bottom = border(`╰${"─".repeat(width - 2)}╯`);
+		// renderContent's first and last lines are its own horizontal rules; the frame replaces them.
+		const middle = lines.slice(1, -1).map((line) => {
+			const fitted = truncateToWidth(line, inner);
+			return `${border("│")} ${fitted}${" ".repeat(Math.max(0, inner - visibleWidth(fitted)))} ${border("│")}`;
+		});
+		return [top, ...middle, bottom];
+	}
+
+	private renderContent(width: number): string[] {
 		const height = Math.max(8, this.tui.terminal.rows - 4);
 		const tabWidth = Math.max(1, Math.floor(width / (this.state.drafts.length + 1)) - 1);
 		const tabs = [...this.state.params.questions.map((q, qi) => `${qi + 1}:${q.header}`), "Review"]
@@ -243,7 +270,7 @@ export class QuestionnaireComponent implements Component, Focusable {
 			top.push(...wrapTextWithAnsi(this.state.params.questions[this.tab].question, width).slice(0, Math.max(0, Math.min(3, height - 9))));
 		}
 		const hint = this.editing ? "Enter save • Shift+Enter newline\nEsc back • Tab/Shift+Tab switch\nCtrl+U clear"
-			: "Tab/Shift+Tab or ←→ switch\n↑↓ move • Enter choose • Space toggle\nn note • PgUp/PgDn scroll • Esc cancel" + (this.transcriptShortcut ? " • Ctrl+] hide/show" : "");
+			: "Tab/Shift+Tab or ←→ switch\n↑↓ move • Enter choose • Space toggle\nn note • PgUp/PgDn scroll • Esc cancel" + " • Ctrl+] hide/show";
 		const hintLines = wrapTextWithAnsi(hint, width).slice(0, Math.max(1, Math.min(3, height - top.length - 3)));
 		const bodyHeight = Math.max(1, height - top.length - hintLines.length - 2);
 		const maxVisible = Math.max(1, Math.min(8, bodyHeight - (width < 90 ? 3 : 1)));
@@ -269,7 +296,8 @@ export class QuestionnaireComponent implements Component, Focusable {
 			const list = this.list.render(width).slice(0, Math.max(1, bodyHeight - gap.length - 1));
 			body = [...list, ...gap, ...this.detailLines(width, Math.max(1, bodyHeight - list.length - gap.length))].slice(0, bodyHeight);
 		}
-		const bottom = [this.theme.fg(this.notice ? "warning" : "dim", this.notice || (this.detailLength > this.detailHeight ? `Details ${this.detailOffset + 1}–${Math.min(this.detailLength, this.detailOffset + this.detailHeight)}/${this.detailLength}` : "Answers stay editable until Submit.")),
+		const idleHint = this.timeout?.enabled ? `No response: continuing without answers in ${Math.ceil((this.timeout.remainingMs ?? this.timeout.durationMs) / 1000)}s. Any key stops the timer.` : "";
+		const bottom = [this.theme.fg(this.notice ? "warning" : "dim", this.notice || idleHint || (this.detailLength > this.detailHeight ? `Details ${this.detailOffset + 1}–${Math.min(this.detailLength, this.detailOffset + this.detailHeight)}/${this.detailLength}` : "Answers stay editable until Submit.")),
 			...hintLines.map((line) => this.theme.fg("dim", line)), this.theme.fg("border", "─".repeat(width))];
 		return [...top, ...body, ...bottom].map((line) => truncateToWidth(line, width));
 	}

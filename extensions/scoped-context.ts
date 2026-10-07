@@ -253,7 +253,7 @@ function readConfigFile(path: string, warnings: string[]): Partial<Config> | und
 		return undefined;
 	}
 	for (const key of Object.keys(raw)) {
-		if (key !== "claudeSkills" && key !== "scopedContext") warnings.push(`${path}: unknown section "${key}"`);
+		if (key !== "claudeSkills" && key !== "scopedContext" && key !== "askUserQuestion") warnings.push(`${path}: unknown section "${key}"`);
 	}
 	const section = (raw as Record<string, unknown>).scopedContext;
 	if (section === undefined) return {};

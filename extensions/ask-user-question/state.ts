@@ -26,7 +26,7 @@ export interface Answer {
 	notes?: string;
 }
 export interface QuestionnaireResult {
-	status: "submitted" | "cancelled" | "aborted" | "unavailable";
+	status: "submitted" | "cancelled" | "aborted" | "unavailable" | "timed_out";
 	/** Compatibility flag: true whenever no answers were submitted. Use status for the reason. */
 	cancelled: boolean;
 	answers: Answer[];
@@ -153,12 +153,22 @@ export class QuestionnaireState {
 }
 
 export function toolResponse(result: QuestionnaireResult) {
-	const text = result.status === "submitted"
-		? `User has answered your questions:\n${JSON.stringify({ answers: result.answers, ...(result.globalNote ? { globalNote: result.globalNote } : {}) }, null, 2)}`
-		: result.status === "cancelled"
-			? "User cancelled the questionnaire. No answers were submitted. Do not use draft answers or ask again unless requested."
-			: result.status === "aborted"
-				? "Questionnaire interrupted. No answers were submitted; this is not a user decline."
-				: `Questionnaire unavailable: ${result.error}. The user did not decline. Ask in plain chat instead.`;
+	let text: string;
+	switch (result.status) {
+		case "submitted":
+			text = `User has answered your questions:\n${JSON.stringify({ answers: result.answers, ...(result.globalNote ? { globalNote: result.globalNote } : {}) }, null, 2)}`;
+			break;
+		case "cancelled":
+			text = "User cancelled the questionnaire. No answers were submitted. Do not use draft answers or ask again unless requested.";
+			break;
+		case "aborted":
+			text = "Questionnaire interrupted. No answers were submitted; this is not a user decline.";
+			break;
+		case "timed_out":
+			text = "Questionnaire response timeout: nobody responded. No answers were submitted. Do not use draft answers or treat silence as consent. For already-authorized, low-risk work, state a reasonable assumption and continue using your own judgment. If explicit approval or essential information is required, do not perform the gated action; report it blocked instead. Do not repeatedly ask the same questions.";
+			break;
+		default:
+			text = `Questionnaire unavailable: ${result.error}. The user did not decline. Ask in plain chat instead.`;
+	}
 	return { content: [{ type: "text" as const, text }], details: result };
 }

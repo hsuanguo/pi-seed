@@ -1,5 +1,6 @@
 import type { ExtensionUIContext } from "@earendil-works/pi-coding-agent";
 import { QuestionnaireState, type QuestionnaireResult } from "./state.ts";
+import type { ResponseTimeout } from "./response-timeout.ts";
 
 export type DialogUI = Pick<ExtensionUIContext, "select" | "editor">;
 type Action = { label: string; run: () => void | Promise<void> };
@@ -39,6 +40,7 @@ export async function runDialogs(
 	ui: DialogUI,
 	state: QuestionnaireState,
 	signal?: AbortSignal,
+	timeout?: ResponseTimeout,
 ): Promise<QuestionnaireResult> {
 	const count = state.params.questions.length;
 	let cursor = 0;
@@ -50,8 +52,17 @@ export async function runDialogs(
 		// Dismissing a secondary dialog returns to its parent, not cancel the questionnaire.
 		if (!signal?.aborted && value !== undefined) save(value);
 	};
+	const select = (title: string, options: string[]) => {
+		const remaining = timeout?.remainingMs;
+		return waitForDialog(() => ui.select(title, options, { signal, ...(remaining ? { timeout: remaining } : {}) }), signal)
+			.then((choice) => {
+				// Any response proves the user is present: no timeout for the rest of this questionnaire.
+				if (choice !== undefined) timeout?.markResponded();
+				return choice;
+			});
+	};
 	const secondaryMenu = async (title: string, actions: Action[]) => {
-		const choice = await waitForDialog(() => ui.select(title, actions.map((a) => a.label), { signal }), signal);
+		const choice = await select(title, actions.map((a) => a.label));
 		if (signal?.aborted || choice === undefined) return;
 		const action = actions.find((a) => a.label === choice);
 		if (!action) { dialogError = "Host returned an unknown dialog choice."; return; }
@@ -115,7 +126,7 @@ export async function runDialogs(
 			if (qi > 0) actions.push({ label: "Back", run: () => { cursor = qi - 1; } });
 		}
 		// The host already supplies Cancel. Do not add a second cancellation row.
-		const choice = await waitForDialog(() => ui.select(title, actions.map((action) => action.label), { signal }), signal);
+		const choice = await select(title, actions.map((action) => action.label));
 		if (signal?.aborted) return state.result("aborted");
 		if (choice === undefined) return state.result("cancelled");
 		const action = actions.find((a) => a.label === choice);

@@ -22,7 +22,7 @@ const sandbox = mkdtempSync(join(tmpdir(), "pi-seed-custom-ui-"));
 const home = join(sandbox, "home"), agentDir = join(sandbox, "agent"), project = join(sandbox, "project");
 const artifacts = join(root, "test-results/questionnaire-web");
 for (const path of [home, project, artifacts, join(agentDir, "extensions"), join(agentDir, "fixture/questionnaire"), join(agentDir, "sessions/e2e")]) mkdirSync(path, { recursive: true });
-for (const file of ["index.ts", "state.ts", "dialogs.ts", "tui.ts"]) {
+for (const file of ["index.ts", "state.ts", "dialogs.ts", "tui.ts", "config.ts", "response-timeout.ts"]) {
 	writeFileSync(join(agentDir, "fixture/questionnaire", file), readFileSync(join(root, "extensions/ask-user-question", file)));
 }
 const questions = [
@@ -32,8 +32,12 @@ const questions = [
 ];
 writeFileSync(join(agentDir, "extensions/questionnaire-demo.ts"), `
 import { questionTool } from "../fixture/questionnaire/index.ts";
+import { getAgentDir } from "@earendil-works/pi-coding-agent";
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
 export default function (pi) {
-	pi.registerCommand("questionnaire-demo", { handler: async (_args, ctx) => {
+  pi.registerCommand("questionnaire-demo", { handler: async (mode, ctx) => {
+    writeFileSync(join(getAgentDir(), "pi-seed-config.json"), JSON.stringify({askUserQuestion:{timeoutSeconds:mode === "timeout" ? 4 : 0}}));
 		const result = await questionTool.execute("demo", {questions:${JSON.stringify(questions)}}, ctx.signal, undefined, ctx);
 		ctx.ui.notify("FORM_RESULT: " + JSON.stringify(result.details));
 	}});
@@ -71,8 +75,8 @@ try {
 		page.on("request", (request) => { if (request.method() === "POST" && new URL(request.url()).pathname === `/api/agent/${id}`) commands.push(request.postDataJSON()); });
 		await page.goto(`${base}/?session=${id}`, { waitUntil: "domcontentloaded" });
 		await page.getByRole("paragraph").filter({ hasText: "Independent questionnaire fixture" }).waitFor();
-		const start = async () => {
-			await page.locator("textarea").last().fill("/questionnaire-demo");
+		const start = async (mode = "") => {
+			await page.locator("textarea").last().fill(`/questionnaire-demo ${mode}`.trim());
 			await page.getByRole("button", { name: "Send", exact: true }).click();
 			const dialog = page.getByRole("dialog"); await dialog.waitFor();
 			await dialog.getByRole("button", { name: /1\. TypeScript/ }).waitFor();
@@ -127,8 +131,29 @@ try {
 		const cancelValue = JSON.parse((await cancelled.innerText()).replace(/^FORM_RESULT:\s*/, ""));
 		assert.deepEqual(cancelValue.answers, []); assert.ok(!("globalNote" in cancelValue));
 		assert.equal(commands.some((command) => command.type === "abort"), false, "Cancel belongs to the questionnaire, not agent Stop");
+		await page.getByRole("button", { name: "Stop agent", exact: true }).waitFor({ state: "hidden" });
+		panel = await start("timeout");
+		assert.equal(await choice("Turn off timeout", true).count(), 0);
+		await panel.getByText(/expires in/).waitFor();
+		await panel.waitFor({ state: "hidden" });
+		const timed = page.getByText(/^FORM_RESULT:.*"status":"timed_out"/).last(); await timed.waitFor();
+		const timedValue = JSON.parse((await timed.innerText()).replace(/^FORM_RESULT:\s*/, ""));
+		assert.deepEqual(timedValue.answers, []);
+		await page.getByRole("button", { name: "Stop agent", exact: true }).waitFor({ state: "hidden" });
+		panel = await start("timeout");
+		await choice("Type something.", true).click();
+		await panel.getByRole("textbox").waitFor();
+		assert.equal(await panel.getByText(/expires in/).count(), 0, "opening an editor stops the timer");
+		await delay(4300);
+		assert.equal(await panel.isVisible(), true, "an editor may outlast the configured limit");
+		await panel.getByRole("textbox").fill("Present user");
+		await choice("Submit", true).click();
+		assert.equal(await panel.getByText(/expires in/).count(), 0, "no countdown after any response");
+		await delay(4300);
+		assert.equal(await panel.isVisible(), true, "the timer stays off after a response");
+		await choice("Cancel", true).click(); await panel.waitFor({ state: "hidden" });
 		assert.deepEqual(errors, []);
-		console.log(`PASS: unmodified pi-web ${hostPackage.version}, ${width}px native dialogs, Back, answer preservation, notes, custom text, review and Cancel`);
+		console.log(`PASS: unmodified pi-web ${hostPackage.version}, ${width}px native dialogs, Back, answer preservation, unattended timeout, response stops timer, notes, review and Cancel`);
 		await context.close(); page = undefined;
 	}
 } catch (error) {

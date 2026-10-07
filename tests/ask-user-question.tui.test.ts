@@ -119,6 +119,24 @@ test("TUI: long previews can scroll, Unicode/narrow layouts and resizing never o
 	t.ui.dispose();
 });
 
+test("TUI: the overlay is fully framed and fills every row to its width, so the transcript cannot show through", () => {
+	const t = component();
+	for (const width of [40, 80, 120]) {
+		for (const view of ["question", "review", "editor"]) {
+			if (view === "review") send(t.ui, TAB, TAB);
+			if (view === "editor") send(t.ui, "n");
+			const lines = t.ui.render(width).map((line) => stripVTControlCharacters(line).replace(CURSOR_MARKER, ""));
+			assert.match(lines[0], /^\u256d\u2500 Questions \u2500*\u256e$/, `${view} ${width}`);
+			assert.match(lines.at(-1)!, /^\u2570\u2500+\u256f$/);
+			for (const line of lines) assert.equal(visibleWidth(line), width, `${view} ${width}: ${JSON.stringify(line)}`);
+			for (const line of lines.slice(1, -1)) assert.ok(line.startsWith("\u2502 ") && line.endsWith(" \u2502"), `${view} ${width}: ${JSON.stringify(line)}`);
+			if (view === "editor") send(t.ui, ESC);
+			if (view === "review") send(t.ui, TAB);
+		}
+	}
+	t.ui.dispose();
+});
+
 test("TUI: the focused Continue row stays visible on a short, narrow terminal", () => {
 	const t = component();
 	t.terminal.rows = 12;
