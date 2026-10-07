@@ -6,9 +6,7 @@ license: Apache-2.0
 
 # Pi Skill Creator
 
-Adapted from [S1M0N38/pi-skill-creator](https://github.com/S1M0N38/pi-skill-creator/tree/a28b3b4a2f24218231725cb013e2aa68309361d8). Modified for pi-seed: replace inline evaluations with fresh pi-subagents sessions and use small Node.js helpers for fixture preparation and reporting. See [source notes](references/sources.md) for the versions and interfaces checked.
-
-Evaluations require Pi with pi-subagents. The bundled helpers require Node.js 22.19+ and Pi's installed `@earendil-works/pi-coding-agent` SDK.
+Create and improve reusable pi skills. Evaluate them against a baseline in fresh pi-subagents sessions to check whether they help and trigger on the right tasks.
 
 ## Create or revise
 
@@ -47,7 +45,10 @@ An empty fixtures directory is valid for text-only tasks. Keep evaluation artifa
    ```
 
    This writes `benchmark.json` and `benchmark.md`, comparing `with_skill - without_skill`. Review the outputs and evidence with the user, not just the score. A single pair is exploratory; repeat uncertain cases before drawing conclusions.
+
 4. Generalize improvements from failures. Remove instructions that consume effort without changing outcomes. Freeze a new snapshot and rerun in new directories. Compare old and new versions using separate private profiles and fresh children; never edit a snapshot during a run.
 5. For description optimization, use positive queries, near-miss negatives, and a held-out set in **discovery** mode. Do not mention the skill in the task or force a read. Count successful reads of the exact snapshot `SKILL.md` from tool evidence; listing it in the prompt is not a trigger. Keep infrastructure errors out of trigger accuracy.
 
 Stop when the user's acceptance criteria are met or the agreed evaluation limit is reached. Report remaining uncertainty and retain the evidence. Remove only the temporary profiles created for this evaluation after their children finish; keep result directories for review. A finished skill in this package is already distributed through `pi.skills`; update the skills table and README when adding user-facing behavior.
+
+Adapted from [S1M0N38/pi-skill-creator](https://github.com/S1M0N38/pi-skill-creator/tree/a28b3b4a2f24218231725cb013e2aa68309361d8) ([source notes](references/sources.md)).

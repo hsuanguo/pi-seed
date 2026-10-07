@@ -1,5 +1,7 @@
 # Evaluation with pi-subagents
 
+Evaluations require Pi with pi-subagents. The bundled helpers require Node.js 22.19+ and Pi's installed `@earendil-works/pi-coding-agent` SDK.
+
 ## Cases and artifacts
 
 Use this small case format; fixture paths resolve relative to the evals file:
@@ -13,7 +15,10 @@ Use this small case format; fixture paths resolve relative to the evals file:
       "prompt": "Write release notes from changes.json, grouped by impact.",
       "fixtures": "fixtures/release-notes",
       "expected_output": "Accurate user-facing notes with no internal-only changes.",
-      "assertions": ["Every public change is represented.", "Internal-only changes are omitted."]
+      "assertions": [
+        "Every public change is represented.",
+        "Internal-only changes are omitted."
+      ]
     }
   ]
 }
@@ -73,13 +78,13 @@ subagent({
   ...plan.conditions.with_skill,
   task: experimentalTask,
   model: selectedModel,
-  timeoutMs: deadlineMs
+  timeoutMs: deadlineMs,
 });
 subagent({
   ...plan.conditions.without_skill,
   task: baselineTask,
   model: selectedModel,
-  timeoutMs: deadlineMs
+  timeoutMs: deadlineMs,
 });
 ```
 
@@ -109,8 +114,16 @@ Write `eval_metadata.json` in the pair directory with `eval_id`, `prompt`, `asse
 ```json
 {
   "expectations": [
-    { "text": "Every public change is represented.", "passed": true, "evidence": "notes.md covers changes 1, 3, and 4." },
-    { "text": "Internal-only changes are omitted.", "passed": false, "evidence": "notes.md includes the internal migration." }
+    {
+      "text": "Every public change is represented.",
+      "passed": true,
+      "evidence": "notes.md covers changes 1, 3, and 4."
+    },
+    {
+      "text": "Internal-only changes are omitted.",
+      "passed": false,
+      "evidence": "notes.md includes the internal migration."
+    }
   ]
 }
 ```

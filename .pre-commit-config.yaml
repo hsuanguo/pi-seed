@@ -3,3 +3,10 @@ repos:
     rev: v8.24.2
     hooks:
       - id: gitleaks
+
+  - repo: https://github.com/rbubley/mirrors-prettier
+    rev: v3.9.9
+    hooks:
+      - id: prettier
+        exclude_types: [json]
+        exclude: '\.jsonl$'
