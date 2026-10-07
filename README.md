@@ -75,7 +75,18 @@ Use Pi as you normally would: describe the task and let the agent choose the too
 
 Claude skills are discovered automatically from your user and trusted project skill directories. Subdirectory instructions load as the agent works, and structured questions appear when it needs your input.
 
-For example, ask Pi to watch a PR:
+Setup includes [pi-subagents](https://github.com/nicobailon/pi-subagents). Ask Pi to delegate in plain language:
+
+| Use case | Example request |
+| --- | --- |
+| Explore code | Have scout map the installer flow before we plan a change. |
+| Challenge a plan | Ask oracle to identify hidden assumptions and simpler alternatives. |
+| Review from several angles | Use independent reviewers for correctness, missing tests, and maintainability, then combine their findings. |
+| Work in the background | Delegate this investigation in the background and bring back the report when it finishes. |
+
+See [subagent examples](docs/subagents.md) for more workflow guide.
+
+This setup is optimized for recurring and scheduled monitoring, for example, ask Pi to watch a PR:
 
 ```text
 Watch PR #123 every 10 minutes for 24 hours and notify me when action is needed.
@@ -123,6 +134,7 @@ Existing prompts are preserved; `--force` replaces them and differing settings a
 - [Installation and updates](docs/installation.md): installer behavior, flags, SSH, and uninstalling.
 - [Extension configuration](docs/configuration.md): options, discovery behavior, and extension selection.
 - [Structured questions](docs/ask-user-question.md): controls and timeouts.
+- [Subagent examples](docs/subagents.md): exploration, parallel review, research, and background work.
 - [Prompts and skill workflows](docs/workflows.md): usage examples and operating details.
 - [Development](docs/development.md): local checks, personal extension copies, and browser verification.
 
