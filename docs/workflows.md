@@ -1,5 +1,23 @@
 # Prompts and skill workflows
 
+## Handoff
+
+Split an issue discovered in the current conversation into a separate task:
+
+```text
+/handoff Fix the stale cache issue we just found
+```
+
+With no argument, `/handoff` asks Pi to hand off the issue just identified. You can also ask in plain language: “Hand this issue off to a new session in its own worktree, with the relevant findings.” The current model prepares a self-contained task and focused context, then calls `handoff`. This uses an ordinary model turn in the current session. Review the brief in the tool arguments or the new session; it is model-generated and may omit details.
+
+The extension creates a unique `handoff/<title>-<id>` branch from the **current checkout's exact HEAD**, including when that checkout is already a worktree. The new checkout lives under `<main-repo>-worktrees/handoff-<title>-<id>`. The new session starts at the checkout root, even when the source session was in a subdirectory. Worktrees start from committed files: staged, unstaged, untracked and ignored files, dependencies, and local configuration are not copied. Tracked/untracked local changes produce a warning in both the result and the brief. The extension never commits or stashes your work.
+
+The new session contains the task, relevant context, source session/entry information, source working directory, base commit, and the source model selection. It uses pi's default session storage for the new working directory, even when the parent uses a custom `--session-dir`. A persisted parent is linked through `parentSession`; an ephemeral parent is identified in the brief without a dangling file link. The receipt also stays on the source session branch and in the tool result, so it remains available after resume or compaction.
+
+The new task is **idle until you open it and send a message**. The extension starts no child process or model turn in the new session, and leaves the original session active. In the CLI, use the returned POSIX shell command (`cd ... && pi --session ...`) in another terminal. In pi-web, refresh the session list and select the named new session; Git worktree discovery groups it with the same project. Opening/switching a web tab is not automated. No pi-web server, HTTP API, or pi-subagents package is required.
+
+Successful worktrees and branches remain until you remove them explicitly, through pi or Git. Removing the checkout leaves its session history on disk but prevents continuing work there until the checkout is restored. Failure or cancellation rolls back newly created resources only when they remain unchanged; modified, untracked, or ignored files and changed commits are retained and reported. Git checkout is allowed to settle, with a five-minute timeout, before cancellation cleanup. The extension has no configuration or automatic cleanup process.
+
 ## Improve Agent Instructions
 
 The installer adds `/improve-agents-md` globally, available in any project after starting a new pi session or running `/reload`:

@@ -50,6 +50,7 @@ See [installation details](docs/installation.md) for options, SSH sources, updat
 | `claude-skills.ts` | Discovers skills in user and trusted project `.claude/skills/` directories. | `/claude-skills` shows discovery status. |
 | `scoped-context.ts` | Loads subdirectory `AGENTS.md` / `CLAUDE.md` instructions as you work. | `/scoped-context` shows loaded context. |
 | `ask-user-question/` | Adds structured questions with choices, custom answers, notes, and review in terminal and pi-web/RPC dialogs. | Pi calls `ask_user_question` when it needs a decision. |
+| `handoff/` | Splits a task and relevant context into a persistent session in an independent Git worktree. Works in CLI and pi-web without a host dependency. | `/handoff [task]` or ask Pi to hand an issue off to a new session. |
 
 ### Skills and prompts
 
@@ -74,6 +75,8 @@ Prompts require `install.mjs`; extensions and skills are also available through 
 Use Pi as you normally would: describe the task and let the agent choose the tools. With the setup installed, `codemode` lets it combine sequences of tool calls into fewer model turns. Long-running work can run in the background and wake the session when it finishes, leaving you free to continue chatting. Keep Pi running to receive completion notifications.
 
 Claude skills are discovered automatically from your user and trusted project skill directories. Subdirectory instructions load as the agent works, and structured questions appear when it needs your input.
+
+Use `/handoff Fix the cache issue we just found` to split a side issue into its own task. Pi prepares a focused brief, creates a worktree from the current checkout's exact HEAD, and saves a new, idle session there. Open it with the returned command or refresh pi-web's session list. Your original session stays in place. Local changes and ignored files are not copied; keep the new worktree until you explicitly remove it. See [handoff details](docs/workflows.md#handoff).
 
 Setup includes [pi-subagents](https://github.com/nicobailon/pi-subagents). Ask Pi to delegate in plain language:
 

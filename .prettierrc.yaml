@@ -1,4 +1,7 @@
 overrides:
+  - files: "*.{js,mjs,cjs,ts,tsx}"
+    options:
+      useTabs: true
   - files: "*.md"
     options:
       proseWrap: never

@@ -9,7 +9,14 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { after } from "node:test";
 import { fileURLToPath } from "node:url";
-import { type FauxResponseStep, type JsonObject, fauxAssistantMessage, fauxProvider, fauxText, fauxToolCall } from "@earendil-works/pi-ai";
+import {
+	type FauxResponseStep,
+	type JsonObject,
+	fauxAssistantMessage,
+	fauxProvider,
+	fauxText,
+	fauxToolCall,
+} from "@earendil-works/pi-ai";
 import {
 	type AgentSession,
 	createAgentSession,
@@ -22,15 +29,20 @@ import {
 } from "@earendil-works/pi-coding-agent";
 
 export const REPO_DIR = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-export const extensionPath = (name: string) => join(REPO_DIR, "extensions", `${name}.ts`);
+export const extensionPath = (name: string) =>
+	join(REPO_DIR, "extensions", `${name}.ts`);
 
 const sandboxRoots: string[] = [];
 const sessions = new Set<AgentSession>();
-const originalEnv = { HOME: process.env.HOME, PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR };
+const originalEnv = {
+	HOME: process.env.HOME,
+	PI_CODING_AGENT_DIR: process.env.PI_CODING_AGENT_DIR,
+};
 
 after(() => {
 	for (const session of sessions) session.dispose();
-	for (const root of sandboxRoots) rmSync(root, { recursive: true, force: true });
+	for (const root of sandboxRoots)
+		rmSync(root, { recursive: true, force: true });
 	for (const [key, value] of Object.entries(originalEnv)) {
 		if (value === undefined) delete process.env[key];
 		else process.env[key] = value;
@@ -54,7 +66,8 @@ export function createSandbox(): Sandbox {
 	const home = join(root, "home");
 	const agentDir = join(root, "agent");
 	const workspace = join(root, "workspace");
-	for (const dir of [home, agentDir, workspace]) mkdirSync(dir, { recursive: true });
+	for (const dir of [home, agentDir, workspace])
+		mkdirSync(dir, { recursive: true });
 	process.env.HOME = home;
 	process.env.PI_CODING_AGENT_DIR = agentDir;
 	return {
@@ -64,7 +77,8 @@ export function createSandbox(): Sandbox {
 		workspace,
 		write(path, content) {
 			const target = resolve(root, path);
-			if (!target.startsWith(`${root}${sep}`)) throw new Error(`Fixture path escapes sandbox: ${path}`);
+			if (!target.startsWith(`${root}${sep}`))
+				throw new Error(`Fixture path escapes sandbox: ${path}`);
 			mkdirSync(dirname(target), { recursive: true });
 			writeFileSync(target, content);
 			return target;
@@ -79,7 +93,10 @@ export interface TestSession {
 	/** Queue the faux model's next responses, replacing any left over. */
 	respond(...steps: FauxResponseStep[]): void;
 	/** One user turn in which the model makes `calls` (in parallel), then answers "done". */
-	turnWithTools(calls: { name: string; args: JsonObject }[], prompt?: string): Promise<void>;
+	turnWithTools(
+		calls: { name: string; args: JsonObject }[],
+		prompt?: string,
+	): Promise<void>;
 	/** One user turn the model answers with text only. */
 	textTurn(prompt?: string): Promise<void>;
 	/** Real compaction; the faux model writes the summaries. */
@@ -97,9 +114,17 @@ export interface TestSession {
 
 export interface TestSessionOptions {
 	cwd?: string;
+	/** Explicit storage for persistence/resume tests; callers keep it in the sandbox. */
+	sessionManager?: SessionManager;
 	/** Explicit resource isolation for child-session and skill-loading probes. */
-	resources?: Pick<ConstructorParameters<typeof DefaultResourceLoader>[0],
-		"noSkills" | "additionalSkillPaths" | "skillsOverride" | "noContextFiles" | "appendSystemPrompt">;
+	resources?: Pick<
+		ConstructorParameters<typeof DefaultResourceLoader>[0],
+		| "noSkills"
+		| "additionalSkillPaths"
+		| "skillsOverride"
+		| "noContextFiles"
+		| "appendSystemPrompt"
+	>;
 	/** Extension files to load. Discovery of other extensions is off. */
 	extensions?: string[];
 	extensionFactories?: ExtensionFactory[];
@@ -107,9 +132,15 @@ export interface TestSessionOptions {
 	settings?: Record<string, unknown>;
 }
 
-export async function createTestSession(sandbox: Sandbox, options: TestSessionOptions = {}): Promise<TestSession> {
+export async function createTestSession(
+	sandbox: Sandbox,
+	options: TestSessionOptions = {},
+): Promise<TestSession> {
 	const cwd = options.cwd ?? sandbox.workspace;
-	const settingsManager = SettingsManager.inMemory({ compaction: { enabled: false }, ...options.settings });
+	const settingsManager = SettingsManager.inMemory({
+		compaction: { enabled: false },
+		...options.settings,
+	});
 	settingsManager.setProjectTrusted(options.trusted ?? false);
 	const faux = fauxProvider();
 	const modelRuntime = await ModelRuntime.create({
@@ -135,11 +166,13 @@ export async function createTestSession(sandbox: Sandbox, options: TestSessionOp
 		modelRuntime,
 		resourceLoader,
 		settingsManager,
-		sessionManager: SessionManager.inMemory(cwd),
+		sessionManager: options.sessionManager ?? SessionManager.inMemory(cwd),
 	});
 	sessions.add(session);
 	const notices: string[] = [];
-	const uiContext = { notify: (message: string) => notices.push(message) } as unknown as ExtensionUIContext;
+	const uiContext = {
+		notify: (message: string) => notices.push(message),
+	} as unknown as ExtensionUIContext;
 	await session.bindExtensions({ uiContext });
 
 	const respond = (...steps: FauxResponseStep[]) => faux.setResponses(steps);
@@ -163,20 +196,31 @@ export async function createTestSession(sandbox: Sandbox, options: TestSessionOp
 		},
 		async compact() {
 			// A split turn needs a second summary for the turn prefix.
-			respond(fauxAssistantMessage([fauxText("## Goal\nsummary")]), fauxAssistantMessage([fauxText("prefix summary")]));
+			respond(
+				fauxAssistantMessage([fauxText("## Goal\nsummary")]),
+				fauxAssistantMessage([fauxText("prefix summary")]),
+			);
 			await session.compact();
 		},
 		toolResults(toolName) {
 			return session.messages.flatMap((message) =>
 				message.role === "toolResult" && message.toolName === toolName
-					? [message.content.map((block) => (block.type === "text" ? block.text : "")).join("")]
+					? [
+							message.content
+								.map((block) => (block.type === "text" ? block.text : ""))
+								.join(""),
+						]
 					: [],
 			);
 		},
 		systemMessages() {
 			return session.sessionManager
 				.getBranch()
-				.flatMap((entry) => (entry.type === "message" && entry.message.role === "system" ? [JSON.stringify(entry.message)] : []));
+				.flatMap((entry) =>
+					entry.type === "message" && entry.message.role === "system"
+						? [JSON.stringify(entry.message)]
+						: [],
+				);
 		},
 		dispose: () => {
 			sessions.delete(session);
