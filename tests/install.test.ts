@@ -34,7 +34,7 @@ fs.writeFileSync(file, JSON.stringify(settings, null, 2));
 interface Env {
 	sandbox: Sandbox;
 	repo: string;
-	run(args?: string[], extraEnv?: Record<string, string>): { status: number | null; stdout: string; stderr: string };
+	run(args?: string[], extraEnv?: Record<string, string | undefined>): { status: number | null; stdout: string; stderr: string };
 	piCalls(): string[];
 	settings(): Record<string, unknown>;
 	read(name: string): string;
@@ -206,6 +206,24 @@ test("existing context files are untouched, even with --force or a changed templ
 	}
 });
 
+test("skipped context warning is yellow when enabled and plain when color is disabled", () => {
+	const env = setup();
+	env.sandbox.write("agent/AGENTS.md", "# Mine\n");
+	const args = ["--no-packages", "--no-prompts", "--force"];
+	const colored = env.run(args, { FORCE_COLOR: "1", NO_COLOR: undefined });
+	assert.equal(colored.status, 0, colored.stderr);
+	const warning = colored.stdout.split("\n").find((line) => line.includes("already exists; skipped"));
+	assert.ok(warning?.startsWith("\x1b[33m  ! "));
+	assert.ok(warning?.endsWith("\x1b[0m"));
+	for (const extraEnv of [{ FORCE_COLOR: "0" }, { FORCE_COLOR: "1", NO_COLOR: "1" }]) {
+		const plain = env.run(args, extraEnv);
+		assert.equal(plain.status, 0, plain.stderr);
+		assert.match(plain.stdout, /  ! .*already exists; skipped \(even with --force\)/);
+		assert.ok(!plain.stdout.includes("\x1b["));
+	}
+	assert.equal(env.read("AGENTS.md"), "# Mine\n");
+});
+
 test("copied context is never replaced when the template changes", () => {
 	const env = setup({}, "Original template\n");
 	assert.equal(env.run(["--no-self", "--no-packages"]).status, 0);
@@ -245,6 +263,45 @@ test("the shipped template is valid and holds only shareable defaults", () => {
 	}
 	for (const pkg of template.packages ?? []) assert.match(pkg, /^(npm:|git:)/, `${pkg}: public source`);
 	assert.match(readFileSync(join(REPO_DIR, "install.mjs"), "utf8"), /const SELF_SOURCE = "git:github\.com\/hsuanguo\/pi-seed";/);
+});
+
+test("agent installation guide includes every essential package and preserves approval boundaries", () => {
+	const guide = readFileSync(join(REPO_DIR, "install.md"), "utf8");
+	const template = JSON.parse(readFileSync(join(REPO_DIR, "setup/settings.json"), "utf8"));
+	const commands = guide.split("\n").filter((line) => line.startsWith("pi install "));
+	assert.deepEqual(commands, [
+		"pi install git:github.com/hsuanguo/pi-seed",
+		...template.packages.map((source: string) => `pi install ${source}`),
+	]);
+	assert.ok(guide.includes("Wait for explicit approval before installing packages or writing user files."));
+	assert.ok(guide.includes("Cancellation, a timeout, or silence is not approval."));
+	assert.ok(guide.includes("Never overwrite or append to an existing context file."));
+	assert.ok(guide.includes("Re-read settings after package commands"));
+	assert.ok(guide.includes("Respect an explicit `-codemode`."));
+	assert.ok(guide.includes("Do not claim success if any essential package failed."));
+	for (const file of ["README.md", "docs/installation.md"]) {
+		const content = readFileSync(join(REPO_DIR, file), "utf8");
+		assert.ok(content.includes("Recommended: install with your AI assistant"));
+		assert.ok(content.includes("https://raw.githubusercontent.com/hsuanguo/pi-seed/main/install.md"));
+	}
+});
+
+test("pi-web workaround is discoverable and distinguishes activation from child launch", () => {
+	const docs = readFileSync(join(REPO_DIR, "docs/installation.md"), "utf8");
+	assert.ok(docs.includes("## pi-web: subagent startup workaround"));
+	assert.ok(docs.includes("https://github.com/agegr/pi-web/issues/952"));
+	assert.ok(docs.includes("https://github.com/nicobailon/pi-subagents/pull/2531"));
+	assert.ok(docs.includes("explicitly leaves child launch resolution unchanged"));
+	assert.ok(docs.includes('export PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT="$SDK_ROOT"'));
+	assert.ok(docs.includes("Use pi-web's bundled SDK"));
+	for (const file of ["README.md", "install.md"]) {
+		const content = readFileSync(join(REPO_DIR, file), "utf8");
+		assert.ok(content.includes("#pi-web-subagent-startup-workaround"));
+		assert.ok(content.includes("PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT"));
+		assert.ok(content.includes("`/reload`"));
+	}
+	const guide = readFileSync(join(REPO_DIR, "install.md"), "utf8");
+	assert.ok(guide.includes("restart the server without separate approval"));
 });
 
 test("the package ships background-tasks and the model-invocable English PR sitting skill", () => {

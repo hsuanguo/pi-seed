@@ -21,7 +21,20 @@
 
 Requires Node.js 22.19+.
 
-[Install pi](https://pi.dev/), then:
+### Recommended: install with your AI assistant
+
+1. [Install pi](https://pi.dev/) and start a session with a working model.
+2. Paste this prompt into pi:
+
+```text
+Fetch https://raw.githubusercontent.com/hsuanguo/pi-seed/main/install.md and follow it. Ask me about optional setup and wait for my approval before installing packages or changing my files.
+```
+
+The [installation prompt](install.md) guides the agent through checks, your choices, an approved plan, and verification. The recommended setup includes pi-seed and five essential third-party packages: `pi-web-access`, `pi-cache-optimizer`, `@juicesharp/rpiv-todo`, `pi-subagents`, and `pi-lens`. You choose settings, prompts, and initial instructions. Existing context files always stay untouched. These packages are essential to this setup, not to pi itself.
+
+The agent can fetch the guide with its shell tools; no web extension is needed beforehand. Review its plan before approval. AI-assisted setup can vary by model; use the manual method if you prefer predictable installer behavior.
+
+### Manual installation
 
 ```bash
 git clone https://github.com/hsuanguo/pi-seed && cd pi-seed
@@ -39,7 +52,17 @@ For just the extensions and skills:
 pi install git:github.com/hsuanguo/pi-seed
 ```
 
-See [installation details](docs/installation.md) for options, SSH sources, updates, and uninstalling.
+**pi-web users:**
+
+- Do not use the pi-web built-in subagent(default off)
+- Due to the limitation of pi-web, set `PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT` before you launch it.
+
+```bash
+SDK_ROOT="$(npm root -g)/@agegr/pi-web/node_modules/@earendil-works/pi-coding-agent"
+export PI_SUBAGENTS_PI_CODING_AGENT_PACKAGE_ROOT="$SDK_ROOT"
+```
+
+See [installation details](docs/installation.md) for options, SSH sources, updates, uninstalling, and details about [pi-web SDK-root workaround](docs/installation.md#pi-web-subagent-startup-workaround).
 
 ## What's included
 
@@ -64,7 +87,7 @@ Use `pi-skill-creator` to develop your own skills and `background-tasks` to mana
 | `improve-agents-md` | Audits agent instructions and proposes a minimal patch for approval. | `/improve-agents-md [path] [audit-only]` |
 | `show-me` | Explains the current topic or a named concept visually. | `/show-me [topic]` |
 
-Prompts require `install.mjs`; extensions and skills are also available through `pi install`. See the [workflow guide](docs/workflows.md) for examples and the [skills directory](skills/README.md) for skill instructions.
+Prompts are copied by the agent-led setup or `install.mjs`; extensions and skills are also available through `pi install`. See the [workflow guide](docs/workflows.md) for examples and the [skills directory](skills/README.md) for skill instructions.
 
 ### Setup defaults
 
@@ -99,7 +122,7 @@ It can also review new revisions or maintain your PR by addressing feedback. See
 
 ## Configuration
 
-Before customization of what to be installed, edit [setup/settings.json](setup/settings.json) and [setup/AGENTS.md](setup/AGENTS.md). To choose packages, defaults, and instructions. Preview with `--dry-run`; use `--no-packages`, `--no-agents`, or `--no-prompts` to skip those parts.
+The recommended agent-led setup asks which settings, prompts, and initial instructions you want. All five third-party packages are essential to that setup. For the manual installer, you can customize [setup/settings.json](setup/settings.json) and [setup/AGENTS.md](setup/AGENTS.md). Preview with `--dry-run`; use `--no-packages`, `--no-agents`, or `--no-prompts` to skip those parts.
 
 For extension options, create `~/.pi/agent/pi-seed-config.json` (or `$PI_CODING_AGENT_DIR/pi-seed-config.json`). These are the defaults:
 
@@ -130,7 +153,7 @@ pi update git:github.com/hsuanguo/pi-seed   # extensions and skills
 git pull && node install.mjs              # setup templates and packages
 ```
 
-Existing prompts are preserved; `--force` replaces them and differing settings after backup. Manually merge any wanted changes from `setup/AGENTS.md` into your user context.
+Existing prompts are preserved; `--force` replaces them and differing settings after backup. Existing user context files are skipped with a yellow warning in terminals (`NO_COLOR` disables color). Manually merge any wanted changes from `setup/AGENTS.md` into your user context.
 
 ## Documentation
 

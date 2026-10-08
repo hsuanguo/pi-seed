@@ -7,7 +7,7 @@
  *   2. packages  - runs `pi install` for every package in setup/settings.json that is not installed,
  *                  plus this repo itself (which ships the extensions).
  *   3. AGENTS.md - copies setup/AGENTS.md only if no user context file exists. Existing context
- *                  files are left untouched; maintain them yourself.
+ *                  files are left untouched; a yellow terminal warning reminds you to maintain them yourself.
  *   4. prompts   - copies improve-agents-md and show-me to the global prompts directory. Existing content
  *                  is kept unless --force; changed files are backed up before replacement.
  *
@@ -200,7 +200,10 @@ function applyAgents(dir, opts) {
 	const name = CONTEXT_FILES.find((file) => existsSync(join(dir, file)));
 	const source = join(REPO_DIR, "setup", "AGENTS.md");
 	if (name) {
-		console.log(`  = ${join(dir, name)} already exists; skipped. Maintain it yourself; merge any wanted changes from ${source} manually.`);
+		const message = `  ! ${join(dir, name)} already exists; skipped (even with --force). Maintain it yourself; merge any wanted changes from ${source} manually.`;
+		const color = process.env.NO_COLOR === undefined
+			&& (process.env.FORCE_COLOR !== undefined ? process.env.FORCE_COLOR !== "0" : process.stdout.isTTY);
+		console.log(color ? `\x1b[33m${message}\x1b[0m` : message);
 		return;
 	}
 	const path = join(dir, "AGENTS.md");
